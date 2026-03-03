@@ -1,54 +1,50 @@
-# SightFi 数据源清单（Data Sources）
+# SightFi 数据源（Data Sources）
 
 > 更新时间：2026-03-03  
-> 目标：优先“免配置可用”，其次“可选配置增强”。
+> 设计目标：**默认免配置即可跑通真实行情 + 真实新闻**；需要更强覆盖/稳定性时，再按需补 Key。
 
-## 1. 现状总览
+## 1. 一句话结论（你需要知道的最少信息）
 
-| 数据域                 | 默认链路（免配置）                       | 可选增强（需配置）      | 说明                       |
-| ---------------------- | ---------------------------------------- | ----------------------- | -------------------------- |
-| 行情（美股/港股）      | `yahoo-finance2`                         | 可切换外部付费源        | 覆盖广，接入快             |
-| 行情（国内 ETF/沪深）  | `Eastmoney Push API`                     | 可对接券商/终端 API     | 免 Key，可取实时价格与涨跌 |
-| 新闻（机构/宏观/地缘） | `Google News RSS + Yahoo Finance RSS`    | `GNews / NewsAPI / FMP` | 默认免配置，优先真实来源   |
-| 新闻翻译（中英切换）   | `Google Translate Web API`（服务端代理） | AI 翻译（可扩展）       | 支持 `lang=zh/en` 一键切换 |
+| 你关心什么                 | 默认就有吗 | 默认来源                                        | 可选增强                        |
+| -------------------------- | ---------- | ----------------------------------------------- | ------------------------------- |
+| 行情（美股/港股/部分 ETF） | 是         | Yahoo（聚合库）                                 | 后续可扩展付费源（需单独接入）  |
+| 行情（沪深/国内 ETF）      | 是         | Eastmoney（公开接口）                           | 券商/终端（需单独接入）         |
+| 新闻事实流                 | 是         | Google News RSS + Yahoo Finance RSS             | GNews / NewsAPI / FMP（需 Key） |
+| 新闻中英切换               | 是         | Google Translate 公共端点（无 Key，服务端请求） | 后续可替换为 AI 翻译            |
 
-## 2. Provider 策略
+> 核心约束：新闻条目必须可追溯（`source` + `sourceId` + `publishedAt`）。
 
-| 模块     | 环境变量               | 取值                                                             | 默认值   | 行为                               |
-| -------- | ---------------------- | ---------------------------------------------------------------- | -------- | ---------------------------------- |
-| 行情     | `MARKET_DATA_PROVIDER` | `hybrid` / `yahoo` / `eastmoney` / `mock`                        | `hybrid` | `hybrid`=Yahoo + Eastmoney 合并    |
-| 新闻     | `NEWS_DATA_PROVIDER`   | `auto` / `rss` / `google` / `gnews` / `newsapi` / `fmp` / `mock` | `auto`   | `auto` 优先 Key 源，其次免配置 RSS |
-| 新闻回退 | `ALLOW_MOCK_FALLBACK`  | `true` / `false`                                                 | `false`  | 失败时是否回退 mock                |
+## 2. Provider 选择（环境变量）
 
-## 3. 接口能力
+| 模块 | 环境变量               | 可选值                                                           | 默认值   | 说明                                               |
+| ---- | ---------------------- | ---------------------------------------------------------------- | -------- | -------------------------------------------------- |
+| 行情 | `MARKET_DATA_PROVIDER` | `hybrid` / `yahoo` / `eastmoney` / `mock`                        | `hybrid` | `hybrid` 会合并 Yahoo（跨市场）+ Eastmoney（国内） |
+| 新闻 | `NEWS_DATA_PROVIDER`   | `auto` / `rss` / `google` / `gnews` / `newsapi` / `fmp` / `mock` | `auto`   | `auto`：优先走已配置 Key 的源；否则走免配置 RSS    |
+| 兜底 | `ALLOW_MOCK_FALLBACK`  | `true` / `false`                                                 | `false`  | 仅建议本地开发使用；生产默认禁用                   |
 
-| 接口                        | 参数                                | 能力                                 |
-| --------------------------- | ----------------------------------- | ------------------------------------ | ------------------- |
-| `GET /api/v1/market/quotes` | `symbols=SPY,QQQ,0700.HK,510300.SH` | 返回统一结构行情（含来源和更新时间） |
-| `GET /api/v1/market/stream` | `symbols=...`                       | SSE 实时行情推送                     |
-| `GET /api/v1/news/facts`    | `q=...&limit=...&lang=en            | zh`                                  | 事实流 + 中英文切换 |
+## 3. 可选配置（提升覆盖/稳定性）
 
-## 4. 如需你配置（可选）
+| 配置项          | 是否必需 | 何时需要                 | 影响                                   |
+| --------------- | -------- | ------------------------ | -------------------------------------- |
+| `GNEWS_API_KEY` | 否       | 需要更稳定的全球新闻覆盖 | `NEWS_DATA_PROVIDER=auto/gnews` 可用   |
+| `NEWSAPI_KEY`   | 否       | 需要新闻备源             | `NEWS_DATA_PROVIDER=auto/newsapi` 可用 |
+| `FMP_API_KEY`   | 否       | 需要更结构化的金融新闻源 | `NEWS_DATA_PROVIDER=auto/fmp` 可用     |
 
-| 配置项                | 是否必需 | 用途                     |
-| --------------------- | -------- | ------------------------ |
-| `GNEWS_API_KEY`       | 否       | 提升全球新闻覆盖与稳定性 |
-| `NEWSAPI_KEY`         | 否       | 新闻备源                 |
-| `FMP_API_KEY`         | 否       | 金融新闻结构化源         |
-| `ALLOW_MOCK_FALLBACK` | 否       | 本地开发时可启用兜底     |
+> `MARKET_DATA_API_KEY` / `NEWS_DATA_API_KEY` 当前属于**预留配置位**：用于未来接入“自定义/付费 Provider”时做统一注入；现阶段默认链路不依赖它们。
 
-> 默认情况下你不用配置任何 Key，系统可直接跑通真实行情 + 真实新闻链路。
+## 4. API 一览（用于联调/排障）
 
-## 5. 关于 Bloomberg / 金十 / 地缘政治
+| 接口                           | Query 参数                          | 返回                  | 备注                                       |
+| ------------------------------ | ----------------------------------- | --------------------- | ------------------------------------------ | ----------------------------------- |
+| `GET /api/v1/market/quotes`    | `symbols=SPY,QQQ,0700.HK,510300.SH` | `MarketQuote[]`       | `symbols` 最多 20 个；缺省走默认 watchlist |
+| `GET /api/v1/market/stream`    | `symbols=...`                       | SSE（event=`quotes`） | 事件数据是 `MarketQuote[]` JSON            |
+| `GET /api/v1/news/facts`       | `q=...&limit=20&lang=en             | zh`                   | `NewsFact[]`                               | `limit` 范围 1–50；`lang` 缺省 `en` |
+| `GET /api/v1/system/providers` | -                                   | `ProviderFlags`       | 用于 System 页显示“哪些外部能力已配置”     |
 
-| 目标源    | 当前策略                                                 | 说明                       |
-| --------- | -------------------------------------------------------- | -------------------------- |
-| Bloomberg | 通过聚合 RSS 检索到 Bloomberg 报道                       | 官方深度接口通常为付费授权 |
-| 金十数据  | 通过关键词查询（`jin10 macro`）在聚合 RSS 中抓取公开报道 | 官方专有 API 需单独授权    |
-| 地缘政治  | 默认查询包包含 `geopolitics`，并在地图模块按区域聚合     | 结果可追溯到具体来源链接   |
+## 5. 降级策略（读者只需要记住顺序）
 
-## 6. 下一步建议
-
-1. 增加 Redis 缓存（新闻 30-60s，行情 5-10s）降低外部波动影响。
-2. 增加“来源可信等级”字段（机构级/聚合级/待验证）。
-3. 为国内 ETF 增补 IOPV 估值字段（需要新增行情 DTO）。
+| 数据域                                | 策略                           | 说明                                                       |
+| ------------------------------------- | ------------------------------ | ---------------------------------------------------------- |
+| 新闻（`NEWS_DATA_PROVIDER=auto`）     | Key 源 → RSS Blend → Yahoo RSS | Key 源优先：`gnews` → `newsapi` → `fmp`；无 Key 时走免配置 |
+| 新闻（整体失败）                      | 是否允许回退 mock              | `ALLOW_MOCK_FALLBACK=false` 时直接报错，避免“伪数据污染”   |
+| 行情（`MARKET_DATA_PROVIDER=hybrid`） | Yahoo + Eastmoney 合并         | 对国内标的优先 Eastmoney；其余走 Yahoo                     |

@@ -56,18 +56,10 @@ apps/
 packages/
   shared/     # 前后端共享类型
   config/     # 共享 TypeScript 配置
-docs/         # PRD / Plan / Rules / Log
+docs/         # 产品与工程文档（从 docs/README.md 进入）
 scripts/      # 开发编排脚本
 ```
 
 ## 文档入口
 
-所有产品与工程文档统一放在 `docs/`：
-
-- `docs/goal.md`：项目目标与边界
-- `docs/prd.md`：产品需求文档（PRD）
-- `docs/plan.md`：里程碑与执行计划
-- `docs/architecture.md`：技术架构与分层规范
-- `docs/rules.md`：项目规则与工程约束
-- `docs/log.md`：决策与变更日志
-- `docs/data-sources.md`：第三方数据源选型与接入策略
+所有产品与工程文档统一放在 `docs/`，从 `docs/README.md` 进入即可。

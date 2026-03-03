@@ -30,6 +30,7 @@
 | LOG-021 | 2026-03-03 | Change   | Intel 页面重做（Apple 简约 + 全量 i18n） | Intel 布局重排、AI 简报要点化、文案字典化 | Done        |
 | LOG-022 | 2026-03-03 | Change   | 文档与 UI 链路治理（二次收敛）      | docs 精简、新闻时区化、地图事实驱动、壳层伪数据清理 | Done        |
 | LOG-023 | 2026-03-03 | Change   | 数据源扩展与新闻翻译链路增强        | 行情 hybrid、新闻 RSS 扩展、`lang` 翻译、地图区域归类修正 | Done        |
+| LOG-024 | 2026-03-03 | Change   | 文档入口收敛与赘述清理              | `docs/README.md`、`docs/data-sources.md`、`docs/prd.md`、`README.md` | Done        |
 
 ## 2. 详细记录
 
@@ -252,3 +253,13 @@
 | 影响范围 | `apps/api/src/modules/market/*`、`apps/api/src/modules/news/*`、`apps/web/src/shared/services/*`、`apps/web/src/shared/hooks/*`、`apps/web/src/features/dashboard/*`、`docs/data-sources.md`。 |
 | 验证结果 | `@sightfi/api` 与 `@sightfi/web` 的 lint/typecheck/build 全部通过；`smoke:providers` 通过（新闻返回真实来源）。                                          |
 | 后续动作 | 如需更高准确性，可追加付费专业源（Bloomberg 企业授权、金十官方 API）并增加新闻来源置信评级。                                                             |
+
+### LOG-024｜2026-03-03｜Change｜文档入口收敛与赘述清理
+
+| 字段     | 内容 |
+| -------- | ---- |
+| 背景     | 文档入口分散、同一信息在多处重复，导致阅读与联调成本上升。 |
+| 决策     | 新增 `docs/README.md` 作为单一入口；将 `docs/data-sources.md` 收敛为“默认链路/可选配置/API/降级顺序”；将 `docs/prd.md` 精简为 MVP 必需能力并通过“依赖文档”避免重复；根 `README.md` 文档入口只保留指向 `docs/README.md`。 |
+| 影响范围 | `docs/README.md`、`docs/data-sources.md`、`docs/prd.md`、`README.md`。 |
+| 验证结果 | 文档可读性提升；API 路由与环境变量描述与代码实现一致。 |
+| 后续动作 | 如后续新增 Provider 或环境变量，优先更新 `docs/data-sources.md` + `.env.example`，并在 `docs/log.md` 追加记录。 |
