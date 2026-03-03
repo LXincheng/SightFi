@@ -1,0 +1,20 @@
+{
+  "name": "sightfi",
+  "private": true,
+  "version": "0.1.0",
+  "description": "SightFi monorepo",
+  "packageManager": "pnpm@10.3.0",
+  "scripts": {
+    "dev": "node ./scripts/dev.mjs",
+    "build": "pnpm -r --filter @sightfi/shared --filter @sightfi/web --filter @sightfi/api build",
+    "lint": "pnpm -r --filter @sightfi/web --filter @sightfi/api lint",
+    "test": "pnpm -r --filter @sightfi/api test:e2e",
+    "typecheck": "pnpm -r --filter @sightfi/shared --filter @sightfi/web --filter @sightfi/api typecheck",
+    "db:generate": "pnpm --filter @sightfi/api prisma:generate",
+    "db:migrate:dev": "pnpm --filter @sightfi/api prisma:migrate:dev",
+    "db:check": "pnpm --filter @sightfi/api db:check",
+    "deploy:up": "docker compose --env-file .env.production up -d --build",
+    "deploy:down": "docker compose down",
+    "deploy:logs": "docker compose logs -f --tail=200"
+  }
+}

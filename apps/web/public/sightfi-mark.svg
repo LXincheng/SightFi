@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="SightFi">
+  <defs>
+    <linearGradient id="g" x1="0%" x2="100%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#0e141f" />
+      <stop offset="100%" stop-color="#18314f" />
+    </linearGradient>
+    <linearGradient id="a" x1="0%" x2="100%" y1="0%" y2="0%">
+      <stop offset="0%" stop-color="#00c17c" />
+      <stop offset="100%" stop-color="#37d0ff" />
+    </linearGradient>
+  </defs>
+  <rect width="256" height="256" rx="56" fill="url(#g)" />
+  <path d="M52 132c12-34 39-56 76-56 31 0 55 14 77 42l-20 15c-18-23-34-32-56-32-25 0-42 14-53 39l53 1v25H52v-34z" fill="url(#a)" />
+  <circle cx="179" cy="84" r="15" fill="#f4f7fb" />
+</svg>

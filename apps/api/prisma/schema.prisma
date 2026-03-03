@@ -1,0 +1,110 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id          String       @id @default(cuid())
+  email       String       @unique
+  displayName String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  portfolios  Portfolio[]
+  memories    UserMemory[]
+
+  @@map("users")
+}
+
+model Portfolio {
+  id           String        @id @default(cuid())
+  userId       String
+  name         String
+  baseCurrency Currency      @default(USD)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+
+  @@index([userId])
+  @@map("portfolios")
+}
+
+model Transaction {
+  id             String           @id @default(cuid())
+  portfolioId    String
+  symbol         String
+  market         Market
+  quoteCurrency  Currency
+  transactionAt  DateTime
+  side           TransactionSide
+  quantity       Decimal          @db.Decimal(20, 6)
+  unitPrice      Decimal          @db.Decimal(20, 6)
+  fee            Decimal          @db.Decimal(20, 6) @default(0)
+  note           String?
+  createdAt      DateTime         @default(now())
+  portfolio      Portfolio        @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+
+  @@index([portfolioId, transactionAt])
+  @@index([symbol, market])
+  @@map("transactions")
+}
+
+model UserMemory {
+  id          String         @id @default(cuid())
+  userId       String
+  category    MemoryCategory
+  key         String
+  value       Json
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, key])
+  @@index([category])
+  @@map("user_memories")
+}
+
+model FxRate {
+  id          String    @id @default(cuid())
+  base        Currency
+  quote       Currency
+  rate        Decimal   @db.Decimal(20, 8)
+  asOf        DateTime
+  source      String
+  isFallback  Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+
+  @@unique([base, quote, asOf, source])
+  @@index([base, quote, asOf(sort: Desc)])
+  @@map("fx_rates")
+}
+
+enum Market {
+  US
+  HK
+  ETF
+}
+
+enum Currency {
+  USD
+  HKD
+  CNY
+}
+
+enum TransactionSide {
+  BUY
+  SELL
+  DIVIDEND
+  FEE
+}
+
+enum MemoryCategory {
+  RISK_PROFILE
+  STRATEGY_NOTE
+  LESSON_LEARNED
+}

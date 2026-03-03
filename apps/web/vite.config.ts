@@ -1,0 +1,52 @@
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+import tailwindcss from '@tailwindcss/vite'
+import { VitePWA } from 'vite-plugin-pwa'
+
+export default defineConfig({
+  envDir: '../../',
+  plugins: [
+    react(),
+    tailwindcss(),
+    VitePWA({
+      registerType: 'autoUpdate',
+      includeAssets: ['sightfi-mark.svg'],
+      manifest: {
+        name: 'SightFi',
+        short_name: 'SightFi',
+        description: 'AI Financial Monitoring App',
+        theme_color: '#0e141f',
+        background_color: '#f4f7fb',
+        display: 'standalone',
+        start_url: '/',
+        icons: [
+          {
+            src: '/sightfi-mark.svg',
+            sizes: 'any',
+            type: 'image/svg+xml',
+            purpose: 'any',
+          },
+          {
+            src: '/sightfi-mark.svg',
+            sizes: 'any',
+            type: 'image/svg+xml',
+            purpose: 'maskable',
+          },
+        ],
+      },
+    }),
+  ],
+  server: {
+    port: 5173,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+      },
+      '/health': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+      },
+    },
+  },
+})
