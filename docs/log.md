@@ -31,6 +31,8 @@
 | LOG-022 | 2026-03-03 | Change   | 文档与 UI 链路治理（二次收敛）      | docs 精简、新闻时区化、地图事实驱动、壳层伪数据清理 | Done        |
 | LOG-023 | 2026-03-03 | Change   | 数据源扩展与新闻翻译链路增强        | 行情 hybrid、新闻 RSS 扩展、`lang` 翻译、地图区域归类修正 | Done        |
 | LOG-024 | 2026-03-03 | Change   | 文档入口收敛与赘述清理              | `docs/README.md`、`docs/data-sources.md`、`docs/prd.md`、`README.md` | Done        |
+| LOG-025 | 2026-03-03 | Change   | 地图组件重做与跨端交互优化          | `world-map-news` 重构、Dashboard 布局重排、地图 i18n 新增键 | Done        |
+| LOG-026 | 2026-03-04 | Change   | 地图视觉与交互二次重做（简约高级版） | 地图配色/布局/动效重构，交互路径简化，信息层级收口 | Done        |
 
 ## 2. 详细记录
 
@@ -263,3 +265,23 @@
 | 影响范围 | `docs/README.md`、`docs/data-sources.md`、`docs/prd.md`、`README.md`。 |
 | 验证结果 | 文档可读性提升；API 路由与环境变量描述与代码实现一致。 |
 | 后续动作 | 如后续新增 Provider 或环境变量，优先更新 `docs/data-sources.md` + `.env.example`，并在 `docs/log.md` 追加记录。 |
+
+### LOG-025｜2026-03-03｜Change｜地图组件重做与跨端交互优化
+
+| 字段     | 内容 |
+| -------- | ---- |
+| 背景     | 地图在移动端存在尺寸过小与形变问题，且多个区域会出现同一批新闻；展示形态也过于“列表化”，不利于快速判断全球格局。 |
+| 决策     | 重写 `WorldMapNews`：按大洲聚合新闻、支持政治/金融双主题分类、去除跨洲兜底回退、增加缩放/重置交互；Dashboard 中将地图提升为主视觉区并扩大占比。 |
+| 影响范围 | `apps/web/src/features/dashboard/components/world-map-news.tsx`、`apps/web/src/features/dashboard/dashboard-page.tsx`、`apps/web/src/shared/i18n/messages.ts`。 |
+| 验证结果 | 已执行 `pnpm --filter @sightfi/web lint`、`pnpm --filter @sightfi/web typecheck`、`pnpm --filter @sightfi/web build`，全部通过。 |
+| 后续动作 | 建议下一步将“新闻地区/主题标签”下沉到后端标准字段，减少前端关键词推断误差，并补充地图交互 e2e 回归。 |
+
+### LOG-026｜2026-03-04｜Change｜地图视觉与交互二次重做（简约高级版）
+
+| 字段     | 内容 |
+| -------- | ---- |
+| 背景     | 用户反馈当前地图仍显杂乱，交互与动效不够高级，整体风格不满足“简约+清晰+高级”的视觉目标。 |
+| 决策     | 对地图组件进行二次重做：采用低饱和配色与更克制的背景、顶部区域快速切换胶囊、地图内缩放控件纵向收口、地图底部实时摘要卡、右侧分区事实流卡片重排与统一动效节奏。 |
+| 影响范围 | `apps/web/src/features/dashboard/components/world-map-news.tsx`。 |
+| 验证结果 | 已执行 `pnpm --filter @sightfi/web lint`、`pnpm --filter @sightfi/web typecheck`、`pnpm --filter @sightfi/web build`，全部通过。 |
+| 后续动作 | 如需进一步提升“高级感”，下一步可追加地图层级动画开关（低性能设备自动降级）与品牌化设计 token。 |

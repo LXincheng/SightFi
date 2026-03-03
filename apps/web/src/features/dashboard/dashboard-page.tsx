@@ -303,8 +303,24 @@ export function DashboardPage({ state, live, facts, locale, isDark, currency }: 
         </div>
       </motion.div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <div className={`glass-card flex h-[320px] flex-col rounded-2xl border p-4 md:h-[420px] lg:h-[520px] lg:col-span-1 ${cardBase}`}>
+      <div className={`glass-card flex h-[760px] flex-col rounded-2xl border p-3 md:h-[820px] md:p-4 lg:h-[720px] ${cardBase}`}>
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className={`flex items-center gap-1.5 text-sm font-medium ${textDim}`}>
+            <Globe className="h-3.5 w-3.5 text-blue-400" />
+            {locale === 'zh' ? '全球情报地图' : 'Global Intel Map'}
+          </h3>
+          <div className="flex items-center gap-1">
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
+            <span className={`text-sm ${textDim}`}>LIVE</span>
+          </div>
+        </div>
+        <div className="min-h-0 flex-1 overflow-hidden rounded-xl">
+          <WorldMapNews locale={locale} isDark={isDark} facts={facts} />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-4">
+        <div className={`glass-card flex h-[320px] flex-col rounded-2xl border p-4 md:h-[420px] lg:col-span-1 ${cardBase}`}>
           <div className="mb-3 flex items-center justify-between">
             <h3 className={`flex items-center gap-1.5 text-sm font-medium ${textDim}`}>
               <BarChart2 className="h-3.5 w-3.5 text-emerald-400" />
@@ -319,25 +335,7 @@ export function DashboardPage({ state, live, facts, locale, isDark, currency }: 
           </div>
         </div>
 
-        <div className={`glass-card flex h-[620px] flex-col rounded-2xl border p-4 md:h-[560px] lg:h-[620px] lg:col-span-2 ${cardBase}`}>
-          <div className="mb-3 flex items-center justify-between">
-            <h3 className={`flex items-center gap-1.5 text-sm font-medium ${textDim}`}>
-              <Globe className="h-3.5 w-3.5 text-blue-400" />
-              {locale === 'zh' ? '全球情报地图' : 'Global Intel Map'}
-            </h3>
-            <div className="flex items-center gap-1">
-              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
-              <span className={`text-sm ${textDim}`}>LIVE</span>
-            </div>
-          </div>
-          <div className="min-h-0 flex-1 overflow-hidden rounded-xl">
-            <WorldMapNews locale={locale} isDark={isDark} facts={facts} />
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <div className={`glass-card rounded-2xl border p-4 ${cardBase}`}>
+        <div className={`glass-card rounded-2xl border p-4 lg:col-span-1 ${cardBase}`}>
           <h3 className={`mb-4 flex items-center gap-1.5 text-sm uppercase ${textDim}`}>
             <Zap className="h-3.5 w-3.5 text-purple-400" />
             {locale === 'zh' ? '板块配置' : 'Sector Exposure'}
