@@ -6,8 +6,17 @@ import { HttpJsonService } from '../../core/integrations/http-json.service';
 import { MockDataService } from '../mock/mock-data.service';
 import { FactExtractionService } from './fact-extraction.service';
 import { NEWS_CONSTANTS } from './news.constants';
+import { NewsTranslateService } from './news-translate.service';
 
-type NewsProvider = 'mock' | 'fmp' | 'newsapi' | 'gnews' | 'auto';
+type NewsProvider =
+  | 'mock'
+  | 'fmp'
+  | 'newsapi'
+  | 'gnews'
+  | 'google'
+  | 'rss'
+  | 'auto';
+type NewsLanguage = 'en' | 'zh';
 
 interface GNewsArticle {
   title?: string;
@@ -50,11 +59,13 @@ export class NewsDataService {
     private readonly mockDataService: MockDataService,
     private readonly httpJsonService: HttpJsonService,
     private readonly factExtractionService: FactExtractionService,
+    private readonly newsTranslateService: NewsTranslateService,
   ) {}
 
   async getFacts(
     query: string = NEWS_CONSTANTS.defaultQuery,
     limit: number = NEWS_CONSTANTS.defaultLimit,
+    lang: NewsLanguage = 'en',
   ): Promise<NewsFact[]> {
     const provider = this.getProvider();
     const allowMockFallback = this.getAllowMockFallback();
@@ -63,17 +74,20 @@ export class NewsDataService {
       this.logger.warn(
         'NEWS_DATA_PROVIDER=mock is enabled, using local mock facts.',
       );
-      return this.factExtractionService.extractAndDedupeFacts(
+      const facts = this.factExtractionService.extractAndDedupeFacts(
         this.mockDataService.getNewsFacts().map((fact) => ({
           ...fact,
           sourceId: `mock:${fact.id}`,
         })),
       );
+      return this.newsTranslateService.translateFacts(facts, lang);
     }
 
     try {
       const facts = await this.fetchProviderFacts(provider, query, limit);
-      return this.factExtractionService.extractAndDedupeFacts(facts);
+      const normalized =
+        this.factExtractionService.extractAndDedupeFacts(facts);
+      return this.newsTranslateService.translateFacts(normalized, lang);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       if (!allowMockFallback) {
@@ -82,12 +96,13 @@ export class NewsDataService {
         );
       }
       this.logger.warn(`News provider failed, fallback to mock: ${message}`);
-      return this.factExtractionService.extractAndDedupeFacts(
+      const fallbackFacts = this.factExtractionService.extractAndDedupeFacts(
         this.mockDataService.getNewsFacts().map((fact) => ({
           ...fact,
           sourceId: `mock:${fact.id}`,
         })),
       );
+      return this.newsTranslateService.translateFacts(fallbackFacts, lang);
     }
   }
 
@@ -101,6 +116,8 @@ export class NewsDataService {
       rawProvider === 'fmp' ||
       rawProvider === 'newsapi' ||
       rawProvider === 'gnews' ||
+      rawProvider === 'google' ||
+      rawProvider === 'rss' ||
       rawProvider === 'auto'
     ) {
       return rawProvider;
@@ -130,6 +147,12 @@ export class NewsDataService {
     if (provider === 'gnews') {
       return this.getGNewsFacts(query, limit);
     }
+    if (provider === 'google') {
+      return this.getGoogleNewsRssFacts(query, limit);
+    }
+    if (provider === 'rss') {
+      return this.getRssBlendFacts(query, limit);
+    }
     if (provider === 'auto') {
       return this.getAutoFacts(query, limit);
     }
@@ -154,15 +177,117 @@ export class NewsDataService {
     }
 
     try {
-      return await this.getFmpFacts(limit, 'demo');
-    } catch {
-      return this.getYahooRssFacts(limit);
+      const facts = await this.getRssBlendFacts(query, limit);
+      if (facts.length > 0) return facts;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.warn(`RSS blend failed: ${message}`);
     }
+
+    return this.getYahooRssFacts(limit);
+  }
+
+  private async getRssBlendFacts(
+    query: string,
+    limit: number,
+  ): Promise<NewsFact[]> {
+    const [googleResult, yahooResult] = await Promise.allSettled([
+      this.getGoogleNewsRssFacts(query, limit),
+      this.getYahooRssFacts(limit),
+    ]);
+
+    const merged: NewsFact[] = [];
+    if (googleResult.status === 'fulfilled') {
+      merged.push(...googleResult.value);
+    }
+    if (yahooResult.status === 'fulfilled') {
+      merged.push(...yahooResult.value);
+    }
+
+    return merged.slice(0, limit);
+  }
+
+  private async getGoogleNewsRssFacts(
+    query: string,
+    limit: number,
+  ): Promise<NewsFact[]> {
+    const queries = this.buildAutoQueries(query);
+    const taskList = queries.map((item) => this.fetchGoogleRssByQuery(item));
+    const resolved = await Promise.allSettled(taskList);
+
+    const rawItems = resolved
+      .filter(
+        (
+          item,
+        ): item is PromiseFulfilledResult<
+          Array<{
+            title: string;
+            description: string;
+            link: string;
+            source: string;
+            publishedAt: string;
+          }>
+        > => item.status === 'fulfilled',
+      )
+      .flatMap((item) => item.value);
+
+    const dedupe = new Map<string, NewsFact>();
+    rawItems.forEach((item, index) => {
+      const headline = item.title || `Google News ${index + 1}`;
+      const summary = this.toFactSummary(item.description, headline);
+      const normalized = this.normalizeGenericNews({
+        prefix: 'google-rss',
+        index,
+        source: item.source || 'Google News',
+        headline,
+        content: summary,
+        publishedAt: item.publishedAt,
+        url: item.link,
+      });
+      dedupe.set(`${normalized.source}-${normalized.headline}`, normalized);
+    });
+
+    return Array.from(dedupe.values()).slice(0, limit);
+  }
+
+  private buildAutoQueries(query: string): string[] {
+    const normalized =
+      query.trim().length > 0 ? query.trim() : NEWS_CONSTANTS.defaultQuery;
+    const set = new Set<string>([normalized, ...NEWS_CONSTANTS.autoQueryPacks]);
+    return Array.from(set).slice(0, 4);
+  }
+
+  private async fetchGoogleRssByQuery(query: string): Promise<
+    Array<{
+      title: string;
+      description: string;
+      link: string;
+      source: string;
+      publishedAt: string;
+    }>
+  > {
+    const endpoint =
+      `${NEWS_CONSTANTS.googleRssEndpoint}?` +
+      `q=${encodeURIComponent(query)}&hl=en-US&gl=US&ceid=US:en`;
+    const response = await fetch(endpoint, { method: 'GET' });
+    if (!response.ok) {
+      throw new Error(`Google RSS failed: ${response.status}`);
+    }
+    const xml = await response.text();
+    const items = this.parseRssItems(xml);
+
+    return items.map((item) => ({
+      title: this.extractTitleAndSource(item.title).title,
+      description: item.description,
+      link: item.link,
+      source: item.source || this.extractTitleAndSource(item.title).source,
+      publishedAt: item.publishedAt,
+    }));
   }
 
   private async getYahooRssFacts(limit: number): Promise<NewsFact[]> {
     const symbols = APP_CONSTANTS.defaultWatchSymbols
-      .slice(0, 6)
+      .slice(0, 8)
       .map((symbol) => symbol.replace(/[^A-Za-z0-9.]/g, ''))
       .filter((symbol) => symbol.length > 0)
       .join(',');
@@ -175,38 +300,67 @@ export class NewsDataService {
       throw new Error(`Yahoo RSS failed: ${response.status}`);
     }
     const xml = await response.text();
-    const items = Array.from(xml.matchAll(/<item>([\s\S]*?)<\/item>/gi))
-      .map((match) => match[1])
-      .filter((item): item is string => typeof item === 'string')
-      .slice(0, limit);
+    const items = this.parseRssItems(xml).slice(0, limit);
 
     if (items.length === 0) {
       throw new Error('Yahoo RSS returned empty items');
     }
 
     return items.map((item, index) => {
-      const title =
-        this.decodeXmlText(this.extractTag(item, 'title')) ||
-        `Yahoo RSS ${index + 1}`;
-      const description = this.decodeXmlText(
-        this.extractTag(item, 'description'),
-      );
-      const link = this.extractTag(item, 'link');
-      const pubDate = this.extractTag(item, 'pubDate');
-      const summary = this.toFactSummary(description, title);
+      const headline = item.title || `Yahoo RSS ${index + 1}`;
+      const summary = this.toFactSummary(item.description, headline);
       return {
-        id: `yahoo-rss-${index}-${this.toHash(title)}`,
-        source: 'Yahoo Finance RSS',
-        sourceId: link || undefined,
-        headline: title,
+        id: `yahoo-rss-${index}-${this.toHash(headline)}`,
+        source: item.source || 'Yahoo Finance RSS',
+        sourceId: item.link || undefined,
+        headline,
         factSummary: summary,
-        symbols: this.extractSymbols(`${title} ${summary}`),
-        sentiment: this.detectSentiment(title, summary),
-        publishedAt: pubDate
-          ? new Date(pubDate).toISOString()
+        symbols: this.extractSymbols(`${headline} ${summary}`),
+        sentiment: this.detectSentiment(headline, summary),
+        publishedAt: item.publishedAt
+          ? new Date(item.publishedAt).toISOString()
           : new Date().toISOString(),
       };
     });
+  }
+
+  private parseRssItems(xml: string): Array<{
+    title: string;
+    description: string;
+    link: string;
+    source: string;
+    publishedAt: string;
+  }> {
+    return Array.from(xml.matchAll(/<item>([\s\S]*?)<\/item>/gi))
+      .map((match) => match[1])
+      .filter((item): item is string => typeof item === 'string')
+      .map((item) => ({
+        title: this.decodeXmlText(this.extractTag(item, 'title')),
+        description: this.stripHtml(
+          this.decodeXmlText(this.extractTag(item, 'description')),
+        ),
+        link: this.extractTag(item, 'link'),
+        source: this.decodeXmlText(this.extractTag(item, 'source')),
+        publishedAt: this.extractTag(item, 'pubDate'),
+      }));
+  }
+
+  private extractTitleAndSource(value: string): {
+    title: string;
+    source: string;
+  } {
+    const normalized = value.trim();
+    if (normalized.length === 0) {
+      return { title: '', source: '' };
+    }
+    const splitIndex = normalized.lastIndexOf(' - ');
+    if (splitIndex <= 0) {
+      return { title: normalized, source: '' };
+    }
+    return {
+      title: normalized.slice(0, splitIndex).trim(),
+      source: normalized.slice(splitIndex + 3).trim(),
+    };
   }
 
   private async getFmpFacts(
@@ -325,9 +479,19 @@ export class NewsDataService {
   }
 
   private extractTag(xmlItem: string, tag: string): string {
-    const regex = new RegExp(`<${tag}>([\\s\\S]*?)<\\/${tag}>`, 'i');
-    const match = xmlItem.match(regex);
+    const pattern =
+      tag === 'source'
+        ? new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, 'i')
+        : new RegExp(`<${tag}>([\\s\\S]*?)<\\/${tag}>`, 'i');
+    const match = xmlItem.match(pattern);
     return match?.[1]?.trim() ?? '';
+  }
+
+  private stripHtml(value: string): string {
+    return value
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
   }
 
   private decodeXmlText(value: string): string {
@@ -355,10 +519,10 @@ export class NewsDataService {
 
   private detectSentiment(headline: string, summary: string): Sentiment {
     const text = `${headline} ${summary}`.toLowerCase();
-    if (/(surge|rally|gain|beat|growth|inflow)/.test(text)) {
+    if (/(surge|rally|gain|beat|growth|inflow|upgrade)/.test(text)) {
       return 'bullish';
     }
-    if (/(drop|fall|decline|miss|cut|selloff|outflow)/.test(text)) {
+    if (/(drop|fall|decline|miss|cut|selloff|outflow|downgrade)/.test(text)) {
       return 'bearish';
     }
     return 'neutral';

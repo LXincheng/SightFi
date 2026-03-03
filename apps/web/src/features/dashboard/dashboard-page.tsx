@@ -30,6 +30,7 @@ import {
 } from 'recharts';
 import { MarketHeatmap } from './components/market-heatmap';
 import { WorldMapNews } from './components/world-map-news';
+import { formatDateTimeWithZone } from '../../shared/i18n/format';
 import { formatCurrencyValue } from '../../shared/utils/currency';
 
 interface DashboardPageProps {
@@ -89,9 +90,7 @@ function buildSectorData(quotes: LiveQuotesState['quotes']): SectorDatum[] {
 }
 
 function formatDateForLocale(value: string, locale: Locale): string {
-  return new Date(value).toLocaleString(locale === 'zh' ? 'zh-CN' : 'en-US', {
-    hour12: false,
-  });
+  return formatDateTimeWithZone(value, locale, { withYear: false });
 }
 
 export function DashboardPage({ state, live, facts, locale, isDark, currency }: DashboardPageProps) {
@@ -332,7 +331,7 @@ export function DashboardPage({ state, live, facts, locale, isDark, currency }: 
             </div>
           </div>
           <div className="min-h-0 flex-1 overflow-hidden rounded-xl">
-            <WorldMapNews locale={locale} isDark={isDark} />
+            <WorldMapNews locale={locale} isDark={isDark} facts={facts} />
           </div>
         </div>
       </div>

@@ -29,7 +29,9 @@ export class EnvService {
     ).toLowerCase();
 
     const marketConfigured =
-      marketProvider === 'yahoo'
+      marketProvider === 'yahoo' ||
+      marketProvider === 'eastmoney' ||
+      marketProvider === 'hybrid'
         ? true
         : this.hasValue(ENV_KEYS.marketDataApiKey);
     const newsConfigured =

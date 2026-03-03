@@ -2,6 +2,7 @@ import { NewsDataService } from '../src/modules/news/news-data.service';
 import { MockDataService } from '../src/modules/mock/mock-data.service';
 import { HttpJsonService } from '../src/core/integrations/http-json.service';
 import { FactExtractionService } from '../src/modules/news/fact-extraction.service';
+import { NewsTranslateService } from '../src/modules/news/news-translate.service';
 import { AiProviderService } from '../src/modules/ai/ai-provider.service';
 import { AiService } from '../src/modules/ai/ai.service';
 
@@ -10,6 +11,7 @@ async function main(): Promise<void> {
     new MockDataService(),
     new HttpJsonService(),
     new FactExtractionService(),
+    new NewsTranslateService(),
   );
   const facts = await news.getFacts('global markets', 5);
 

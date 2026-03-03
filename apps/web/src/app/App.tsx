@@ -33,9 +33,9 @@ function App() {
     resolveCurrency(localStorage.getItem(APP_CONSTANTS.currencyStorageKey)),
   );
 
-  const state = useBootstrap();
+  const state = useBootstrap(locale);
   const live = useLiveQuotes(state.quotes);
-  const newsFeed = useNewsFeed(state.facts);
+  const newsFeed = useNewsFeed(state.facts, locale);
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', theme === 'dark');

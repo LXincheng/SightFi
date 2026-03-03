@@ -1,11 +1,17 @@
 import { useMemo, useState } from 'react';
 import type { MarketQuote, NewsFact } from '@sightfi/shared';
 import { motion } from 'motion/react';
-import { Brain, Cpu, ExternalLink, Send } from 'lucide-react';
+import { Brain, Cpu, ExternalLink, Search, Send } from 'lucide-react';
 import type { CurrencyCode } from '../../shared/constants/currency.constants';
+import { formatDateTimeWithZone, localeToIntlTag } from '../../shared/i18n/format';
 import type { Locale, MessageKey } from '../../shared/i18n/messages';
 import { t } from '../../shared/i18n/messages';
 import { formatCurrencyValue } from '../../shared/utils/currency';
+import {
+  NEWS_CHAT_REPLY_DELAY_MS,
+  NEWS_FACT_CATEGORIES,
+} from './news.constants';
+import type { NewsFactCategory } from './news.constants';
 
 interface IntelPageProps {
   facts: NewsFact[];
@@ -27,11 +33,13 @@ interface ChatMessage {
   text: string;
 }
 
-type FactCategory = 'ALL' | 'MACRO' | 'EARNINGS' | 'GEO' | 'CRYPTO' | 'GENERAL';
+interface TimelineGroup {
+  key: string;
+  label: string;
+  items: NewsFact[];
+}
 
-const FACT_CATEGORIES: FactCategory[] = ['ALL', 'MACRO', 'EARNINGS', 'GEO', 'CRYPTO', 'GENERAL'];
-
-function toCategory(source: string): Exclude<FactCategory, 'ALL'> {
+function toCategory(source: string): Exclude<NewsFactCategory, 'ALL'> {
   const upper = source.toUpperCase();
   if (upper.includes('FED') || upper.includes('BLOOMBERG') || upper.includes('JIN10')) return 'MACRO';
   if (upper.includes('EARN') || upper.includes('SEC')) return 'EARNINGS';
@@ -40,16 +48,7 @@ function toCategory(source: string): Exclude<FactCategory, 'ALL'> {
   return 'GENERAL';
 }
 
-function tr(key: MessageKey, vars?: Record<string, string | number>): string {
-  const template = t(key);
-  if (!vars) return template;
-  return Object.entries(vars).reduce(
-    (text, [name, value]) => text.replace(new RegExp(`\\{${name}\\}`, 'g'), String(value)),
-    template,
-  );
-}
-
-function categoryBadgeClass(category: FactCategory, isDark: boolean): string {
+function categoryBadgeClass(category: NewsFactCategory, isDark: boolean): string {
   if (category === 'MACRO') return 'border-sky-400/30 bg-sky-400/10 text-sky-400';
   if (category === 'EARNINGS') return 'border-emerald-400/30 bg-emerald-400/10 text-emerald-400';
   if (category === 'GEO') return 'border-rose-400/30 bg-rose-400/10 text-rose-400';
@@ -64,7 +63,7 @@ function categoryBadgeClass(category: FactCategory, isDark: boolean): string {
     : 'border-slate-300/70 bg-slate-100 text-slate-700';
 }
 
-function categoryKey(category: FactCategory): MessageKey {
+function categoryKey(category: NewsFactCategory): MessageKey {
   if (category === 'ALL') return 'intel.filter.all';
   if (category === 'MACRO') return 'intel.filter.macro';
   if (category === 'EARNINGS') return 'intel.filter.earnings';
@@ -77,6 +76,32 @@ function quickPromptKey(index: number): MessageKey {
   if (index === 0) return 'intel.quickPrompt.1';
   if (index === 1) return 'intel.quickPrompt.2';
   return 'intel.quickPrompt.3';
+}
+
+function buildTimelineGroups(facts: NewsFact[], locale: Locale): TimelineGroup[] {
+  const bucket = new Map<string, NewsFact[]>();
+  const formatter = new Intl.DateTimeFormat(localeToIntlTag(locale), {
+    month: '2-digit',
+    day: '2-digit',
+    weekday: 'short',
+  });
+
+  facts.forEach((fact) => {
+    const date = new Date(fact.publishedAt);
+    if (Number.isNaN(date.getTime())) return;
+    const key = date.toISOString().slice(0, 10);
+    const next = bucket.get(key) ?? [];
+    next.push(fact);
+    bucket.set(key, next);
+  });
+
+  return Array.from(bucket.entries())
+    .sort(([left], [right]) => (left > right ? -1 : 1))
+    .map(([key, items]) => ({
+      key,
+      label: formatter.format(new Date(`${key}T00:00:00.000Z`)),
+      items: items.sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()),
+    }));
 }
 
 export function IntelPage({
@@ -95,13 +120,15 @@ export function IntelPage({
 }: IntelPageProps) {
   const [chat, setChat] = useState<ChatMessage[]>([{ role: 'ai', text: t('intel.chat.welcome') }]);
   const [draft, setDraft] = useState('');
-  const [filter, setFilter] = useState<FactCategory>('ALL');
+  const [filter, setFilter] = useState<NewsFactCategory>('ALL');
 
   const topQuotes = useMemo(() => quotes.slice(0, 6), [quotes]);
   const filteredFacts = useMemo(
     () => (filter === 'ALL' ? facts : facts.filter((fact) => toCategory(fact.source) === filter)),
     [facts, filter],
   );
+  const timeline = useMemo(() => buildTimelineGroups(filteredFacts, locale), [filteredFacts, locale]);
+  const highlightedFacts = useMemo(() => filteredFacts.slice(0, 2), [filteredFacts]);
 
   const briefPoints = useMemo(() => {
     const points = facts
@@ -133,10 +160,10 @@ export function IntelPage({
     window.setTimeout(() => {
       const topFact = filteredFacts[0];
       const response = topFact
-        ? tr('intel.chat.reply.withFact', { question, fact: topFact.factSummary })
-        : tr('intel.chat.reply.noFact', { question });
+        ? t('intel.chat.reply.withFact', { question, fact: topFact.factSummary })
+        : t('intel.chat.reply.noFact', { question });
       setChat((prev) => [...prev, { role: 'ai', text: response }]);
-    }, 550);
+    }, NEWS_CHAT_REPLY_DELAY_MS);
   }
 
   return (
@@ -192,128 +219,153 @@ export function IntelPage({
         </div>
       </motion.section>
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.65fr)_minmax(320px,1fr)]">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,1fr)]">
         <section className={`glass-card rounded-2xl border p-4 md:p-5 ${cardBase}`}>
-          <div className="mb-3 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-            <h2 className={`text-base font-semibold tracking-tight ${textPrimary}`}>{t('intel.section.facts')}</h2>
-            <div className="flex flex-wrap gap-1.5">
-              {FACT_CATEGORIES.map((category) => (
-                <button
-                  key={category}
-                  type="button"
-                  onClick={() => setFilter(category)}
-                  className={`rounded-full border px-2.5 py-1 text-xs transition ${
-                    filter === category
-                      ? categoryBadgeClass(category, isDark)
-                      : isDark
-                        ? 'border-zinc-700/70 text-zinc-400 hover:text-zinc-200'
-                        : 'border-slate-200 text-slate-500 hover:text-slate-700'
-                  }`}
-                >
-                  {t(categoryKey(category))}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className={`grid gap-2 rounded-xl border p-2.5 ${innerCard}`}>
-            <input
-              className={`rounded-xl border px-3 py-2 text-sm outline-none transition ${inputClass}`}
-              value={query}
-              onChange={(event) => onQueryChange(event.target.value)}
-              placeholder={t('intel.search.placeholder')}
-            />
-            <div className="grid grid-cols-[88px_1fr] gap-2">
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <div className="relative min-w-[200px] flex-1">
+              <Search className={`pointer-events-none absolute left-3 top-2.5 h-4 w-4 ${textDim}`} />
               <input
-                className={`rounded-xl border px-3 py-2 text-sm outline-none transition ${inputClass}`}
-                type="number"
-                min={5}
-                max={100}
-                value={limit}
-                onChange={(event) => onLimitChange(Number(event.target.value))}
-                aria-label={t('intel.limit.label')}
+                className={`w-full rounded-xl border py-2 pl-9 pr-3 text-sm outline-none transition ${inputClass}`}
+                value={query}
+                onChange={(event) => onQueryChange(event.target.value)}
+                placeholder={t('intel.search.placeholder')}
               />
-              <button
-                type="button"
-                onClick={() => void onReload()}
-                disabled={loading}
-                className="rounded-xl border border-emerald-500/30 bg-emerald-500/15 px-3 py-2 text-sm text-emerald-500 transition hover:bg-emerald-500/22 disabled:opacity-60"
-              >
-                {loading ? t('intel.refreshing') : t('intel.refresh')}
-              </button>
             </div>
-            {error ? <p className="text-sm text-rose-500">{error}</p> : null}
+            <input
+              className={`w-20 rounded-xl border px-3 py-2 text-sm outline-none transition ${inputClass}`}
+              type="number"
+              min={5}
+              max={100}
+              value={limit}
+              onChange={(event) => onLimitChange(Number(event.target.value))}
+              aria-label={t('intel.limit.label')}
+            />
+            <button
+              type="button"
+              onClick={() => void onReload()}
+              disabled={loading}
+              className="rounded-xl border border-emerald-500/30 bg-emerald-500/15 px-3 py-2 text-sm text-emerald-500 transition hover:bg-emerald-500/22 disabled:opacity-60"
+            >
+              {loading ? t('intel.refreshing') : t('intel.refresh')}
+            </button>
+          </div>
+          {error ? <p className="mb-3 text-sm text-rose-500">{error}</p> : null}
+
+          <div className="mb-3 flex flex-wrap gap-1.5">
+            {NEWS_FACT_CATEGORIES.map((category) => (
+              <button
+                key={category}
+                type="button"
+                onClick={() => setFilter(category)}
+                className={`rounded-full border px-2.5 py-1 text-xs transition ${
+                  filter === category
+                    ? categoryBadgeClass(category, isDark)
+                    : isDark
+                      ? 'border-zinc-700/70 text-zinc-400 hover:text-zinc-200'
+                      : 'border-slate-200 text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                {t(categoryKey(category))}
+              </button>
+            ))}
           </div>
 
-          <div className="mt-3 space-y-2.5">
-            {filteredFacts.map((item, index) => {
+          <div className="mb-3 grid grid-cols-1 gap-2 md:grid-cols-2">
+            {highlightedFacts.map((item) => {
               const category = toCategory(item.source);
               return (
-                <motion.article
-                  key={item.id}
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.04 }}
+                <article
+                  key={`highlight-${item.id}`}
                   className={`rounded-xl border p-3 ${isDark ? 'border-zinc-700/55 bg-zinc-900/35' : 'border-slate-200/90 bg-white/95'}`}
                 >
-                  <div className="mb-2 flex flex-wrap items-center gap-2">
+                  <div className="mb-1.5 flex items-center gap-1.5">
                     <span className={`rounded-full border px-2 py-0.5 text-xs ${categoryBadgeClass(category, isDark)}`}>
                       {t(categoryKey(category))}
                     </span>
-                    <span className={`rounded-full border px-2 py-0.5 text-xs ${isDark ? 'border-zinc-700 text-zinc-400' : 'border-slate-200 text-slate-500'}`}>
-                      {item.source}
-                    </span>
-                    <span className={`ml-auto text-xs ${textDim}`}>
-                      {new Date(item.publishedAt).toLocaleString(locale === 'zh' ? 'zh-CN' : 'en-US', {
-                        hour12: false,
-                        month: '2-digit',
-                        day: '2-digit',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </span>
+                    <span className={`text-xs ${textDim}`}>{item.source || t('intel.source.unknown')}</span>
                   </div>
-                  <p className={`text-sm leading-relaxed ${textMuted}`}>{item.factSummary}</p>
-                  <div className="mt-2 flex items-center gap-2">
-                    <div className="flex flex-wrap gap-1">
-                      {item.symbols.slice(0, 5).map((symbol) => (
-                        <span
-                          key={`${item.id}-${symbol}`}
-                          className={`rounded-full border px-2 py-0.5 text-xs ${isDark ? 'border-zinc-700 text-zinc-500' : 'border-slate-200 text-slate-500'}`}
-                        >
-                          #{symbol}
-                        </span>
-                      ))}
-                    </div>
-                    {item.sourceId ? (
-                      <a
-                        href={item.sourceId}
-                        target="_blank"
-                        rel="noreferrer noopener"
-                        className="ml-auto inline-flex items-center gap-1 text-xs text-emerald-500 hover:text-emerald-400"
-                      >
-                        {t('intel.source.link')}
-                        <ExternalLink className="h-3 w-3" />
-                      </a>
-                    ) : null}
-                  </div>
-                </motion.article>
+                  <p className={`max-h-[4.2rem] overflow-hidden text-sm leading-relaxed ${textMuted}`}>{item.factSummary}</p>
+                </article>
               );
             })}
+          </div>
 
-            {filteredFacts.length === 0 ? (
-              <article className={`rounded-xl border p-3 text-sm ${innerCard} ${textMuted}`}>
-                {t('intel.emptyFiltered')}
-              </article>
-            ) : null}
+          <div className={`rounded-xl border ${innerCard}`}>
+            <header className={`flex items-center justify-between border-b px-3 py-2 ${divider}`}>
+              <div>
+                <h2 className={`text-sm font-semibold ${textPrimary}`}>{t('intel.timeline.title')}</h2>
+                <p className={`text-xs ${textDim}`}>{t('intel.timeline.subtitle')}</p>
+              </div>
+            </header>
+
+            <div className="scrollbar-thin max-h-[760px] space-y-4 overflow-y-auto px-3 py-3">
+              {timeline.map((group) => (
+                <section key={group.key}>
+                  <div className={`mb-2 text-xs font-medium ${textDim}`}>{group.label}</div>
+                  <div className="space-y-2.5">
+                    {group.items.map((item) => {
+                      const category = toCategory(item.source);
+                      return (
+                        <article
+                          key={item.id}
+                          className={`rounded-xl border p-3 ${isDark ? 'border-zinc-700/55 bg-zinc-900/35' : 'border-slate-200/90 bg-white/95'}`}
+                        >
+                          <div className="mb-2 flex flex-wrap items-center gap-2">
+                            <span className={`rounded-full border px-2 py-0.5 text-xs ${categoryBadgeClass(category, isDark)}`}>
+                              {t(categoryKey(category))}
+                            </span>
+                            <span className={`rounded-full border px-2 py-0.5 text-xs ${isDark ? 'border-zinc-700 text-zinc-400' : 'border-slate-200 text-slate-500'}`}>
+                              {item.source || t('intel.source.unknown')}
+                            </span>
+                            <span className={`ml-auto text-xs ${textDim}`}>
+                              {formatDateTimeWithZone(item.publishedAt, locale)}
+                            </span>
+                          </div>
+                          <p className={`text-sm leading-relaxed ${textMuted}`}>{item.factSummary}</p>
+                          <div className="mt-2 flex items-center gap-2">
+                            <div className="flex flex-wrap gap-1">
+                              {item.symbols.slice(0, 5).map((symbol) => (
+                                <span
+                                  key={`${item.id}-${symbol}`}
+                                  className={`rounded-full border px-2 py-0.5 text-xs ${isDark ? 'border-zinc-700 text-zinc-500' : 'border-slate-200 text-slate-500'}`}
+                                >
+                                  #{symbol}
+                                </span>
+                              ))}
+                            </div>
+                            {item.sourceId ? (
+                              <a
+                                href={item.sourceId}
+                                target="_blank"
+                                rel="noreferrer noopener"
+                                className="ml-auto inline-flex items-center gap-1 text-xs text-emerald-500 hover:text-emerald-400"
+                              >
+                                {t('intel.source.link')}
+                                <ExternalLink className="h-3 w-3" />
+                              </a>
+                            ) : null}
+                          </div>
+                        </article>
+                      );
+                    })}
+                  </div>
+                </section>
+              ))}
+
+              {timeline.length === 0 ? (
+                <article className={`rounded-xl border p-3 text-sm ${innerCard} ${textMuted}`}>
+                  {t('intel.timeline.empty')}
+                </article>
+              ) : null}
+            </div>
           </div>
         </section>
 
         <aside className="flex flex-col gap-4">
           <section className={`glass-card rounded-2xl border p-4 ${cardBase}`}>
             <div className="mb-2 flex items-center gap-2">
-              <div className="rounded-lg border border-purple-500/25 bg-purple-500/15 p-1.5">
-                <Brain className="h-4 w-4 text-purple-400" />
+              <div className="rounded-lg border border-emerald-500/25 bg-emerald-500/15 p-1.5">
+                <Brain className="h-4 w-4 text-emerald-400" />
               </div>
               <h3 className={`text-sm font-semibold tracking-tight ${textPrimary}`}>{t('intel.aiBrief.title')}</h3>
             </div>
@@ -324,7 +376,7 @@ export function IntelPage({
             </ul>
           </section>
 
-          <section className={`glass-card flex min-h-[420px] flex-col overflow-hidden rounded-2xl border ${cardBase}`}>
+          <section className={`glass-card flex min-h-[460px] flex-col overflow-hidden rounded-2xl border ${cardBase}`}>
             <header className={`flex items-center justify-between border-b px-4 py-3 ${divider}`}>
               <h3 className={`flex items-center gap-2 text-sm font-semibold ${textPrimary}`}>
                 <Cpu className="h-4 w-4 text-emerald-500" />
@@ -352,6 +404,7 @@ export function IntelPage({
             </div>
 
             <footer className={`border-t p-3 ${divider}`}>
+              <div className={`mb-1.5 text-xs ${textDim}`}>{t('intel.chat.quickTitle')}</div>
               <div className="mb-2 flex flex-wrap gap-1.5">
                 {[0, 1, 2].map((index) => {
                   const text = t(quickPromptKey(index));

@@ -11,6 +11,7 @@ export class NewsController {
   async getFacts(
     @Query('q') query?: string,
     @Query('limit') limit?: string,
+    @Query('lang') lang?: string,
   ): Promise<NewsFact[]> {
     const parsedLimit = Number(limit);
     const finalLimit =
@@ -19,9 +20,11 @@ export class NewsController {
       parsedLimit <= NEWS_CONSTANTS.maxLimit
         ? parsedLimit
         : NEWS_CONSTANTS.defaultLimit;
+    const finalLang = lang?.toLowerCase() === 'zh' ? 'zh' : 'en';
     return this.newsDataService.getFacts(
       query ?? NEWS_CONSTANTS.defaultQuery,
       finalLimit,
+      finalLang,
     );
   }
 }

@@ -1,9 +1,19 @@
-import { Activity, Briefcase, LayoutDashboard, Moon, Newspaper, Settings, Sun } from 'lucide-react';
+import {
+  Activity,
+  Briefcase,
+  LayoutDashboard,
+  Moon,
+  Newspaper,
+  Settings,
+  ShieldCheck,
+  Sun,
+} from 'lucide-react';
 import { clsx } from 'clsx';
 import { NavLink } from 'react-router-dom';
 import type { ReactNode } from 'react';
 import { CURRENCY_OPTIONS } from '../../shared/constants/currency.constants';
 import type { CurrencyCode } from '../../shared/constants/currency.constants';
+import { formatDateTimeWithZone } from '../../shared/i18n/format';
 import type { Locale } from '../../shared/i18n/messages';
 import { t } from '../../shared/i18n/messages';
 
@@ -53,7 +63,7 @@ export function AppShell({
     ? 'bg-zinc-950/90 border-zinc-800/80'
     : 'bg-white/90 border-slate-200/80';
 
-  const tickerBg = isDark
+  const statusBg = isDark
     ? 'bg-zinc-900/60 border-zinc-800'
     : 'bg-white/60 border-slate-200/60';
 
@@ -94,14 +104,17 @@ export function AppShell({
         </nav>
 
         <div className="mt-auto space-y-3 pt-4">
-          <div className={clsx('relative flex h-6 items-center overflow-hidden rounded-lg border', tickerBg)}>
-            <div className="ticker-marquee whitespace-nowrap text-[11px] font-mono">
-              <span className="mx-2 text-emerald-500">BTC $68,420 +0.8%</span>
-              <span className="mx-2 text-rose-400">ETH $3,840 -1.2%</span>
-              <span className="mx-2 text-emerald-500">NVDA $892 +3.4%</span>
-              <span className="mx-2 text-rose-400">TSLA $172 -2.1%</span>
-              <span className="mx-2 text-emerald-500">AAPL $178 +1.2%</span>
-              <span className="mx-2 text-amber-400">GOLD $2,345 +0.3%</span>
+          <div className={clsx('rounded-xl border p-3', statusBg)}>
+            <div className="flex items-center justify-between">
+              <span className={clsx('text-xs', isDark ? 'text-zinc-400' : 'text-slate-500')}>{t('shell.dataSource')}</span>
+              <span className="text-xs font-medium text-emerald-500">{t('shell.bffGateway')}</span>
+            </div>
+            <div className={clsx('mt-2 flex items-center gap-1.5 text-xs', isDark ? 'text-zinc-300' : 'text-slate-700')}>
+              <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
+              {t('shell.zeroClientKey')}
+            </div>
+            <div className={clsx('mt-1.5 text-xs', isDark ? 'text-zinc-500' : 'text-slate-500')}>
+              {t('shell.lastSync')}: {formatDateTimeWithZone(new Date().toISOString(), locale, { withYear: false })}
             </div>
           </div>
 
@@ -145,7 +158,7 @@ export function AppShell({
                   : 'border-slate-200 bg-white/70 text-slate-600 hover:border-slate-300',
               )}
             >
-              {locale === 'en' ? '中文' : 'EN'}
+              {t('app.switchLanguage')}
             </button>
           </div>
 
@@ -182,7 +195,7 @@ export function AppShell({
                   : 'border-slate-200 bg-white/80 text-slate-700',
               )}
             >
-              {locale === 'en' ? '中文' : 'EN'}
+              {t('app.switchLanguage')}
             </button>
             <button
               type="button"
@@ -216,7 +229,7 @@ export function AppShell({
               }
             >
               <item.icon className="h-5 w-5" />
-              <span className="text-[10px] font-mono uppercase tracking-wider">{t(item.shortKey)}</span>
+              <span className="text-xs font-medium tracking-wide">{t(item.shortKey)}</span>
             </NavLink>
           ))}
         </div>

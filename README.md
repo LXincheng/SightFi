@@ -64,10 +64,10 @@ scripts/      # 开发编排脚本
 
 所有产品与工程文档统一放在 `docs/`：
 
+- `docs/goal.md`：项目目标与边界
 - `docs/prd.md`：产品需求文档（PRD）
 - `docs/plan.md`：里程碑与执行计划
+- `docs/architecture.md`：技术架构与分层规范
 - `docs/rules.md`：项目规则与工程约束
 - `docs/log.md`：决策与变更日志
-- `docs/figma-notes.md`：Figma MCP 原型读取记录
-- `docs/configuration.md`：环境配置与 Key 清单
 - `docs/data-sources.md`：第三方数据源选型与接入策略

@@ -33,7 +33,12 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
 
   if (!response.ok) {
     const detail = await response.text();
-    throw new Error(`API ${path} 失败: ${response.status} ${detail}`);
+    throw new Error(
+      t('error.apiRequest', {
+        status: response.status,
+        detail: detail || path,
+      }),
+    );
   }
 
   return (await response.json()) as T;
@@ -47,9 +52,13 @@ export function getQuotes(): Promise<MarketQuote[]> {
   return requestJson<MarketQuote[]>(API_PATHS.marketQuotes);
 }
 
-export function getFacts(query?: string, limit?: number): Promise<NewsFact[]> {
+export function getFacts(
+  query?: string,
+  limit?: number,
+  lang?: 'en' | 'zh',
+): Promise<NewsFact[]> {
   return requestJson<NewsFact[]>(
-    `${API_PATHS.newsFacts}${buildQuery({ q: query, limit })}`,
+    `${API_PATHS.newsFacts}${buildQuery({ q: query, limit, lang })}`,
   );
 }
 

@@ -28,6 +28,8 @@
 | LOG-019 | 2026-03-03 | Change   | 可读性与信息密度收口（继续）        | 地图移动端、来源日期、系统页简化、表格样式与浅色对比 | Done        |
 | LOG-020 | 2026-03-03 | Change   | 真实新闻源强制与 AI 连通性增强      | 新闻 provider 策略、AI 双协议调用、地图/移动表格优化 | Done        |
 | LOG-021 | 2026-03-03 | Change   | Intel 页面重做（Apple 简约 + 全量 i18n） | Intel 布局重排、AI 简报要点化、文案字典化 | Done        |
+| LOG-022 | 2026-03-03 | Change   | 文档与 UI 链路治理（二次收敛）      | docs 精简、新闻时区化、地图事实驱动、壳层伪数据清理 | Done        |
+| LOG-023 | 2026-03-03 | Change   | 数据源扩展与新闻翻译链路增强        | 行情 hybrid、新闻 RSS 扩展、`lang` 翻译、地图区域归类修正 | Done        |
 
 ## 2. 详细记录
 
@@ -230,3 +232,23 @@
 | 影响范围 | `apps/web/src/features/news/intel-page.tsx`、`apps/web/src/shared/i18n/messages.ts`、`docs/log.md`。                                   |
 | 验证结果 | `pnpm --filter @sightfi/web lint`、`pnpm --filter @sightfi/web typecheck`、`pnpm --filter @sightfi/web build` 全部通过。               |
 | 后续动作 | 下一步可将 AI chat 回复也改为后端实时接口驱动，并支持“证据引用跳转”。                                                                    |
+
+### LOG-022｜2026-03-03｜Change｜文档与 UI 链路治理（二次收敛）
+
+| 字段     | 内容                                                                                                                                  |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| 背景     | 当前版本存在文档结构冗长、新闻展示长列表、时间无时区、壳层伪数据等问题，影响可维护性和真实感。                                           |
+| 决策     | 新增 `goal/architecture` 文档并精简 `plan/rules`；新闻链路统一 i18n 与时区格式；世界地图改为真实 facts 聚合驱动；移除壳层静态伪行情。 |
+| 影响范围 | `docs/*`、`README.md`、`apps/web/src/app/layout/*`、`apps/web/src/features/news/*`、`apps/web/src/features/dashboard/*`。            |
+| 验证结果 | 已完成 lint/typecheck/build 校验（Web）。                                                                                             |
+| 后续动作 | 继续将 Dashboard/Portfolio 页面内硬编码文案分批迁移到 i18n 字典，并拆分超大页面文件。                                                   |
+
+### LOG-023｜2026-03-03｜Change｜数据源扩展与新闻翻译链路增强
+
+| 字段     | 内容                                                                                                                                                     |
+| -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 背景     | 需要提升真实数据覆盖（机构新闻、地缘主题、港美与国内 ETF）并支持新闻中英文一键切换；同时修复地图区域过度偏向北美的问题。                                 |
+| 决策     | 行情默认 provider 改为 `hybrid`（Yahoo + Eastmoney）；新闻 `auto` 增加免配置 `Google RSS + Yahoo RSS`；新闻接口新增 `lang` 参数并接入服务端翻译。         |
+| 影响范围 | `apps/api/src/modules/market/*`、`apps/api/src/modules/news/*`、`apps/web/src/shared/services/*`、`apps/web/src/shared/hooks/*`、`apps/web/src/features/dashboard/*`、`docs/data-sources.md`。 |
+| 验证结果 | `@sightfi/api` 与 `@sightfi/web` 的 lint/typecheck/build 全部通过；`smoke:providers` 通过（新闻返回真实来源）。                                          |
+| 后续动作 | 如需更高准确性，可追加付费专业源（Bloomberg 企业授权、金十官方 API）并增加新闻来源置信评级。                                                             |

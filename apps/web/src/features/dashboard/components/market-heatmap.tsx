@@ -34,12 +34,9 @@ function buildHeatData(quotes: MarketQuote[]): HeatCellData[] {
   if (cells.length === 0) {
     return [
       {
-        name: 'Fallback',
+        name: 'Empty',
         children: [
-          { name: 'NVDA', size: 300, color: '#10b981', change: '+2.1%' },
-          { name: 'AAPL', size: 260, color: '#10b981', change: '+0.9%' },
-          { name: 'TSLA', size: 240, color: '#f43f5e', change: '-1.4%' },
-          { name: 'MSFT', size: 230, color: '#10b981', change: '+0.8%' },
+          { name: 'NO DATA', size: 260, color: '#64748b', change: '--' },
         ],
       },
     ];
@@ -94,4 +91,3 @@ export function MarketHeatmap({ quotes }: MarketHeatmapProps) {
     </div>
   );
 }
-

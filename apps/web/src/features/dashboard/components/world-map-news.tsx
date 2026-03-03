@@ -1,248 +1,48 @@
 import { useMemo, useState } from 'react';
+import type { NewsFact, Sentiment } from '@sightfi/shared';
 import { motion } from 'motion/react';
 import { ComposableMap, Geographies, Geography, Line, Marker } from 'react-simple-maps';
 import { ExternalLink } from 'lucide-react';
 import worldData from 'world-atlas/countries-110m.json';
-import type { Locale } from '../../../shared/i18n/messages';
+import { formatDateTimeWithZone } from '../../../shared/i18n/format';
+import type { Locale, MessageKey } from '../../../shared/i18n/messages';
+import { t } from '../../../shared/i18n/messages';
 
-interface RegionNews {
-  titleEn: string;
-  titleZh: string;
-  summaryEn: string;
-  summaryZh: string;
-  source: string;
-  url: string;
-  publishedAt: string;
+type FocusFilter = 'all' | 'rates' | 'energy' | 'supply' | 'emerging';
+type RegionId = 'na' | 'latam' | 'eu' | 'me' | 'af' | 'ea' | 'sa' | 'oc';
+type SimpleGeo = { rsmKey: string } & Record<string, unknown>;
+
+interface RegionConfig {
+  id: RegionId;
+  nameKey: MessageKey;
+  coordinates: [number, number];
+  focus: Exclude<FocusFilter, 'all'>;
 }
 
-interface FinancialRegion {
-  id: string;
-  nameEn: string;
-  nameZh: string;
-  coordinates: [number, number];
-  sentiment: 'positive' | 'negative' | 'neutral';
+interface RegionInsight extends RegionConfig {
   score: number;
-  focus: 'rates' | 'energy' | 'supply' | 'emerging';
-  news: RegionNews[];
+  sentiment: Sentiment;
+  news: NewsFact[];
 }
 
 interface WorldMapNewsProps {
   locale: Locale;
   isDark: boolean;
+  facts: NewsFact[];
 }
 
-type FocusFilter = 'all' | 'rates' | 'energy' | 'supply' | 'emerging';
-type SimpleGeo = { rsmKey: string } & Record<string, unknown>;
-
-const FINANCIAL_REGIONS: FinancialRegion[] = [
-  {
-    id: 'na',
-    nameEn: 'North America',
-    nameZh: '北美',
-    coordinates: [-98, 38],
-    sentiment: 'positive',
-    score: 88,
-    focus: 'rates',
-    news: [
-      {
-        titleEn: 'US AI capex momentum remains strong',
-        titleZh: '美国 AI 资本开支动能仍强',
-        summaryEn: 'Cloud and semiconductor demand stays above guidance in major listed firms.',
-        summaryZh: '头部上市公司云与半导体需求持续高于指引。',
-        source: 'Bloomberg',
-        url: 'https://www.bloomberg.com',
-        publishedAt: '2026-03-03T09:10:00.000Z',
-      },
-      {
-        titleEn: 'Fed keeps policy optionality',
-        titleZh: '美联储维持政策灵活性',
-        summaryEn: 'Data-dependent path reduces abrupt policy shocks for risk assets.',
-        summaryZh: '数据依赖路径降低了风险资产遭遇突发政策冲击的概率。',
-        source: 'Reuters',
-        url: 'https://www.reuters.com',
-        publishedAt: '2026-03-03T08:40:00.000Z',
-      },
-    ],
-  },
-  {
-    id: 'latam',
-    nameEn: 'Latin America',
-    nameZh: '拉丁美洲',
-    coordinates: [-61, -15],
-    sentiment: 'neutral',
-    score: 56,
-    focus: 'emerging',
-    news: [
-      {
-        titleEn: 'Regional FX remains volatile',
-        titleZh: '区域外汇仍处波动区间',
-        summaryEn: 'Sensitivity to commodity and USD-rate changes remains high.',
-        summaryZh: '对商品价格和美元利率变化仍高度敏感。',
-        source: 'Reuters',
-        url: 'https://www.reuters.com',
-        publishedAt: '2026-03-03T07:20:00.000Z',
-      },
-      {
-        titleEn: 'Copper demand outlook revised up',
-        titleZh: '铜需求展望上修',
-        summaryEn: 'Industrial demand supports mining exporters across the region.',
-        summaryZh: '工业需求支撑区域矿业出口国预期。',
-        source: 'Financial Times',
-        url: 'https://www.ft.com',
-        publishedAt: '2026-03-03T06:10:00.000Z',
-      },
-    ],
-  },
-  {
-    id: 'eu',
-    nameEn: 'Europe',
-    nameZh: '欧洲',
-    coordinates: [12, 50],
-    sentiment: 'neutral',
-    score: 63,
-    focus: 'rates',
-    news: [
-      {
-        titleEn: 'ECB remains cautious',
-        titleZh: '欧央行维持谨慎立场',
-        summaryEn: 'Growth is stable while services inflation still needs monitoring.',
-        summaryZh: '增长稳定，但服务通胀仍需观察。',
-        source: 'Financial Times',
-        url: 'https://www.ft.com',
-        publishedAt: '2026-03-03T09:00:00.000Z',
-      },
-      {
-        titleEn: 'Energy storage buildout accelerates',
-        titleZh: '储能建设继续提速',
-        summaryEn: 'Power-grid investments reduce winter energy shock risk.',
-        summaryZh: '电网投资提高了冬季能源波动的缓冲能力。',
-        source: 'Reuters',
-        url: 'https://www.reuters.com',
-        publishedAt: '2026-03-03T05:55:00.000Z',
-      },
-    ],
-  },
-  {
-    id: 'me',
-    nameEn: 'Middle East',
-    nameZh: '中东',
-    coordinates: [45, 27],
-    sentiment: 'negative',
-    score: 46,
-    focus: 'energy',
-    news: [
-      {
-        titleEn: 'Energy risk premium elevated',
-        titleZh: '能源风险溢价抬升',
-        summaryEn: 'Shipping and geopolitical uncertainty keep energy pricing volatile.',
-        summaryZh: '航运与地缘不确定性使能源定价波动维持高位。',
-        source: 'Bloomberg',
-        url: 'https://www.bloomberg.com',
-        publishedAt: '2026-03-03T08:25:00.000Z',
-      },
-      {
-        titleEn: 'Key shipping lanes under watch',
-        titleZh: '关键航运通道持续监测',
-        summaryEn: 'Insurance premiums move up as route risk remains uncertain.',
-        summaryZh: '在航线风险未消退背景下，航运保险费率上行。',
-        source: 'Reuters',
-        url: 'https://www.reuters.com',
-        publishedAt: '2026-03-03T07:45:00.000Z',
-      },
-    ],
-  },
-  {
-    id: 'af',
-    nameEn: 'Africa',
-    nameZh: '非洲',
-    coordinates: [20, 2],
-    sentiment: 'neutral',
-    score: 52,
-    focus: 'emerging',
-    news: [
-      {
-        titleEn: 'Commodity exports hold steady',
-        titleZh: '大宗商品出口保持稳定',
-        summaryEn: 'Core mining and energy exports stay resilient despite logistics pressure.',
-        summaryZh: '核心矿业与能源出口在物流压力下仍具韧性。',
-        source: 'CNBC',
-        url: 'https://www.cnbc.com',
-        publishedAt: '2026-03-03T05:40:00.000Z',
-      },
-    ],
-  },
-  {
-    id: 'ea',
-    nameEn: 'East Asia',
-    nameZh: '东亚',
-    coordinates: [121, 32],
-    sentiment: 'positive',
-    score: 84,
-    focus: 'supply',
-    news: [
-      {
-        titleEn: 'Semiconductor cycle strengthens',
-        titleZh: '半导体景气周期继续增强',
-        summaryEn: 'AI-related supply chain expansion continues across listed suppliers.',
-        summaryZh: 'AI 相关供应链扩张在核心上市供应商中持续推进。',
-        source: 'Nikkei Asia',
-        url: 'https://asia.nikkei.com',
-        publishedAt: '2026-03-03T09:15:00.000Z',
-      },
-      {
-        titleEn: 'Cross-border logistics returns to trend',
-        titleZh: '跨境物流恢复常态节奏',
-        summaryEn: 'Port throughput stabilizes and supports export guidance.',
-        summaryZh: '港口吞吐恢复稳定，出口预期得到支撑。',
-        source: 'Bloomberg',
-        url: 'https://www.bloomberg.com',
-        publishedAt: '2026-03-03T06:35:00.000Z',
-      },
-    ],
-  },
-  {
-    id: 'sa',
-    nameEn: 'South Asia',
-    nameZh: '南亚',
-    coordinates: [78, 22],
-    sentiment: 'neutral',
-    score: 59,
-    focus: 'supply',
-    news: [
-      {
-        titleEn: 'Domestic demand remains resilient',
-        titleZh: '内需维持韧性',
-        summaryEn: 'Consumer and financial activity continue expanding in core markets.',
-        summaryZh: '核心市场消费与金融活动持续扩张。',
-        source: 'CNBC',
-        url: 'https://www.cnbc.com',
-        publishedAt: '2026-03-03T05:00:00.000Z',
-      },
-    ],
-  },
-  {
-    id: 'oc',
-    nameEn: 'Oceania',
-    nameZh: '大洋洲',
-    coordinates: [135, -25],
-    sentiment: 'neutral',
-    score: 58,
-    focus: 'energy',
-    news: [
-      {
-        titleEn: 'Resource exports support growth',
-        titleZh: '资源出口支撑增长',
-        summaryEn: 'Iron ore and LNG exports continue to stabilize regional macro data.',
-        summaryZh: '铁矿石与 LNG 出口继续稳定区域宏观数据。',
-        source: 'ABC News',
-        url: 'https://www.abc.net.au',
-        publishedAt: '2026-03-03T04:20:00.000Z',
-      },
-    ],
-  },
+const REGION_CONFIGS: RegionConfig[] = [
+  { id: 'na', nameKey: 'map.region.na', coordinates: [-98, 38], focus: 'rates' },
+  { id: 'latam', nameKey: 'map.region.sa', coordinates: [-61, -15], focus: 'emerging' },
+  { id: 'eu', nameKey: 'map.region.eu', coordinates: [12, 50], focus: 'rates' },
+  { id: 'me', nameKey: 'map.region.me', coordinates: [45, 27], focus: 'energy' },
+  { id: 'af', nameKey: 'map.region.af', coordinates: [20, 2], focus: 'emerging' },
+  { id: 'ea', nameKey: 'map.region.as', coordinates: [121, 32], focus: 'supply' },
+  { id: 'sa', nameKey: 'map.region.as', coordinates: [78, 22], focus: 'supply' },
+  { id: 'oc', nameKey: 'map.region.oc', coordinates: [135, -25], focus: 'energy' },
 ];
 
-const REGION_LINKS: Array<{ from: string; to: string }> = [
+const REGION_LINKS: Array<{ from: RegionId; to: RegionId }> = [
   { from: 'na', to: 'eu' },
   { from: 'eu', to: 'ea' },
   { from: 'me', to: 'ea' },
@@ -251,30 +51,115 @@ const REGION_LINKS: Array<{ from: string; to: string }> = [
   { from: 'eu', to: 'af' },
 ];
 
-function regionColor(sentiment: FinancialRegion['sentiment']): string {
-  if (sentiment === 'positive') return '#10b981';
-  if (sentiment === 'negative') return '#f43f5e';
+const NA_SYMBOLS = new Set([
+  'SPY',
+  'QQQ',
+  'VTI',
+  'AAPL',
+  'MSFT',
+  'NVDA',
+  'TSLA',
+  'META',
+  'AMZN',
+]);
+const ASIA_SYMBOLS = new Set(['HSTECH', 'HSI', '0700.HK', 'BABA', 'JD', 'TCEHY']);
+const EUROPE_SYMBOLS = new Set(['VGK', 'EWG', 'DAX', 'STOXX50E']);
+
+const REGION_KEYWORDS: Record<RegionId, string[]> = {
+  na: ['united states', 'u.s.', 'us ', 'nasdaq', 'wall street', 'federal reserve', 'fed'],
+  latam: ['latin america', 'brazil', 'mexico', 'argentina', 'chile'],
+  eu: ['europe', 'eurozone', 'ecb', 'germany', 'france', 'uk', 'london'],
+  me: ['middle east', 'israel', 'iran', 'saudi', 'gulf', 'opec'],
+  af: ['africa', 'south africa', 'nigeria', 'egypt'],
+  ea: ['china', 'hong kong', 'japan', 'korea', 'taiwan', 'beijing', 'shanghai'],
+  sa: ['india', 'pakistan', 'bangladesh', 'sri lanka', 'new delhi'],
+  oc: ['australia', 'new zealand', 'oceania', 'sydney', 'melbourne'],
+};
+
+function detectRegionByKeyword(text: string): RegionId | null {
+  const normalized = text.toLowerCase();
+  let bestRegion: RegionId | null = null;
+  let bestScore = 0;
+
+  (Object.keys(REGION_KEYWORDS) as RegionId[]).forEach((region) => {
+    const score = REGION_KEYWORDS[region].reduce(
+      (sum, keyword) => (normalized.includes(keyword) ? sum + 1 : sum),
+      0,
+    );
+    if (score > bestScore) {
+      bestScore = score;
+      bestRegion = region;
+    }
+  });
+
+  return bestScore > 0 ? bestRegion : null;
+}
+
+function toRegionId(fact: NewsFact): RegionId {
+  const symbols = fact.symbols.map((item) => item.toUpperCase());
+  const blob = `${fact.headline} ${fact.factSummary} ${fact.source}`.toLowerCase();
+
+  if (symbols.some((item) => ASIA_SYMBOLS.has(item))) return 'ea';
+  if (symbols.some((item) => EUROPE_SYMBOLS.has(item))) return 'eu';
+  if (symbols.some((item) => NA_SYMBOLS.has(item))) return 'na';
+  const byKeyword = detectRegionByKeyword(blob);
+  if (byKeyword) return byKeyword;
+  return 'na';
+}
+
+function regionColor(sentiment: Sentiment): string {
+  if (sentiment === 'bullish') return '#10b981';
+  if (sentiment === 'bearish') return '#f43f5e';
   return '#38bdf8';
 }
 
-function formatDate(value: string, locale: Locale): string {
-  return new Date(value).toLocaleString(locale === 'zh' ? 'zh-CN' : 'en-US', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  });
+function scoreFromNews(news: NewsFact[]): number {
+  if (news.length === 0) return 40;
+  return Math.min(95, 50 + news.length * 10);
 }
 
-export function WorldMapNews({ locale, isDark }: WorldMapNewsProps) {
-  const [activeId, setActiveId] = useState<string>('na');
+function sentimentFromNews(news: NewsFact[]): Sentiment {
+  const bullish = news.filter((item) => item.sentiment === 'bullish').length;
+  const bearish = news.filter((item) => item.sentiment === 'bearish').length;
+  if (bullish > bearish) return 'bullish';
+  if (bearish > bullish) return 'bearish';
+  return 'neutral';
+}
+
+function isHttpUrl(value?: string): value is string {
+  if (!value) return false;
+  return /^https?:\/\//i.test(value);
+}
+
+export function WorldMapNews({ locale, isDark, facts }: WorldMapNewsProps) {
+  const [activeId, setActiveId] = useState<RegionId>('na');
   const [focusFilter, setFocusFilter] = useState<FocusFilter>('all');
 
+  const regions = useMemo<RegionInsight[]>(() => {
+    const regionNewsMap = new Map<RegionId, NewsFact[]>();
+    facts.forEach((fact) => {
+      const regionId = toRegionId(fact);
+      const next = regionNewsMap.get(regionId) ?? [];
+      next.push(fact);
+      regionNewsMap.set(regionId, next);
+    });
+
+    return REGION_CONFIGS.map((config) => {
+      const news = (regionNewsMap.get(config.id) ?? [])
+        .sort((left, right) => new Date(right.publishedAt).getTime() - new Date(left.publishedAt).getTime())
+        .slice(0, 4);
+      return {
+        ...config,
+        score: scoreFromNews(news),
+        sentiment: sentimentFromNews(news),
+        news,
+      };
+    });
+  }, [facts]);
+
   const filteredRegions = useMemo(
-    () => FINANCIAL_REGIONS.filter((item) => (focusFilter === 'all' ? true : item.focus === focusFilter)),
-    [focusFilter],
+    () => regions.filter((item) => (focusFilter === 'all' ? true : item.focus === focusFilter)),
+    [focusFilter, regions],
   );
 
   const activeRegion = useMemo(
@@ -298,11 +183,11 @@ export function WorldMapNews({ locale, isDark }: WorldMapNewsProps) {
   );
 
   const filterLabels: Record<FocusFilter, string> = {
-    all: locale === 'zh' ? '全部' : 'All',
-    rates: locale === 'zh' ? '利率' : 'Rates',
-    energy: locale === 'zh' ? '能源' : 'Energy',
-    supply: locale === 'zh' ? '供应链' : 'Supply',
-    emerging: locale === 'zh' ? '新兴' : 'Emerging',
+    all: t('map.focus.all'),
+    rates: t('map.focus.rates'),
+    energy: t('map.focus.energy'),
+    supply: t('map.focus.supply'),
+    emerging: t('map.focus.emerging'),
   };
 
   return (
@@ -317,9 +202,7 @@ export function WorldMapNews({ locale, isDark }: WorldMapNewsProps) {
 
       <div className="relative z-10 flex h-full flex-col">
         <div className="flex flex-wrap items-center gap-2 px-3 py-2 md:px-4">
-          <div className={`text-sm ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
-            {locale === 'zh' ? '全球金融区热点监测' : 'Global financial-zone monitor'}
-          </div>
+          <div className={`text-sm ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>{t('map.monitor.title')}</div>
           <div className="ml-auto flex items-center gap-1 rounded-lg border border-white/20 bg-black/15 p-1 backdrop-blur-md">
             {(['all', 'rates', 'energy', 'supply', 'emerging'] as const).map((item) => (
               <button
@@ -424,38 +307,43 @@ export function WorldMapNews({ locale, isDark }: WorldMapNewsProps) {
             {activeRegion ? (
               <>
                 <h3 className={`text-sm font-semibold md:text-base ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                  {locale === 'zh' ? activeRegion.nameZh : activeRegion.nameEn}
+                  {t(activeRegion.nameKey)}
                 </h3>
                 <p className={`mt-1 text-sm ${isDark ? 'text-zinc-400' : 'text-slate-600'}`}>
-                  {locale === 'zh' ? '地缘情报热度评分' : 'Geopolitical heat score'}: {activeRegion.score}
+                  {t('map.score')}: {activeRegion.score}
                 </p>
                 <div className="mt-3 space-y-2.5">
-                  {activeRegion.news.map((news, index) => (
+                  {(activeRegion.news.length > 0
+                    ? activeRegion.news
+                    : facts.slice(0, 4)
+                  ).map((news) => (
                     <article
-                      key={`${news.source}-${index}`}
+                      key={news.id}
                       className={`rounded-xl border p-2.5 ${
                         isDark ? 'border-zinc-700/50 bg-zinc-800/45' : 'border-slate-200/90 bg-slate-50/90'
                       }`}
                     >
                       <h4 className={`text-sm font-semibold ${isDark ? 'text-zinc-100' : 'text-slate-800'}`}>
-                        {locale === 'zh' ? news.titleZh : news.titleEn}
+                        {news.headline}
                       </h4>
                       <p className={`mt-1 text-sm leading-relaxed ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
-                        {locale === 'zh' ? news.summaryZh : news.summaryEn}
+                        {news.factSummary}
                       </p>
                       <div className={`mt-1.5 flex flex-wrap items-center gap-1.5 text-xs ${isDark ? 'text-zinc-500' : 'text-slate-500'}`}>
                         <span>{news.source}</span>
                         <span>·</span>
-                        <span>{formatDate(news.publishedAt, locale)}</span>
-                        <a
-                          href={news.url}
-                          target="_blank"
-                          rel="noreferrer noopener"
-                          className="ml-auto inline-flex items-center gap-1 text-xs text-emerald-500 hover:text-emerald-400"
-                        >
-                          {locale === 'zh' ? '原文' : 'Source'}
-                          <ExternalLink className="h-3 w-3" />
-                        </a>
+                        <span>{formatDateTimeWithZone(news.publishedAt, locale)}</span>
+                        {isHttpUrl(news.sourceId) ? (
+                          <a
+                            href={news.sourceId}
+                            target="_blank"
+                            rel="noreferrer noopener"
+                            className="ml-auto inline-flex items-center gap-1 text-xs text-emerald-500 hover:text-emerald-400"
+                          >
+                            {t('map.source')}
+                            <ExternalLink className="h-3 w-3" />
+                          </a>
+                        ) : null}
                       </div>
                     </article>
                   ))}
@@ -463,7 +351,7 @@ export function WorldMapNews({ locale, isDark }: WorldMapNewsProps) {
               </>
             ) : (
               <div className={`text-sm ${isDark ? 'text-zinc-400' : 'text-slate-600'}`}>
-                {locale === 'zh' ? '当前筛选无可用区域。' : 'No region available for current filter.'}
+                {t('map.noRegion')}
               </div>
             )}
           </motion.aside>

@@ -27,8 +27,8 @@ body {
   min-height: 100%;
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "PingFang SC", "Helvetica Neue", "Microsoft YaHei", sans-serif;
   font-size: 16px;
-  line-height: 1.45;
-  letter-spacing: 0.01em;
+  line-height: 1.5;
+  letter-spacing: 0.005em;
 }
 
 .font-sans,
@@ -73,10 +73,6 @@ body {
   background: rgba(100, 116, 139, 0.58);
 }
 
-.ticker-marquee {
-  animation: marquee 14s linear infinite;
-}
-
 .world-stars {
   background-image:
     radial-gradient(circle at 14% 28%, rgba(255, 255, 255, 0.9) 0 1px, transparent 1.5px),
@@ -88,13 +84,4 @@ body {
 
 .safe-bottom {
   padding-bottom: max(8px, env(safe-area-inset-bottom));
-}
-
-@keyframes marquee {
-  0% {
-    transform: translateX(100%);
-  }
-  100% {
-    transform: translateX(-100%);
-  }
 }

@@ -13,6 +13,7 @@ import { MockDataService } from './modules/mock/mock-data.service';
 import { FactExtractionService } from './modules/news/fact-extraction.service';
 import { NewsController } from './modules/news/news.controller';
 import { NewsDataService } from './modules/news/news-data.service';
+import { NewsTranslateService } from './modules/news/news-translate.service';
 import { SystemController } from './modules/system/system.controller';
 
 @Module({
@@ -33,6 +34,7 @@ import { SystemController } from './modules/system/system.controller';
     SupabaseService,
     MarketDataService,
     NewsDataService,
+    NewsTranslateService,
     HttpJsonService,
     FactExtractionService,
   ],

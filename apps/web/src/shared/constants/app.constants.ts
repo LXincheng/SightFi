@@ -3,5 +3,5 @@ export const APP_CONSTANTS = {
   localeStorageKey: 'sightfi.locale',
   currencyStorageKey: 'sightfi.currency',
   localeDefault: 'en-US',
-  mockRiskProfile: 'balanced',
+  defaultRiskProfile: 'balanced',
 } as const;

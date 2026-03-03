@@ -28,10 +28,12 @@ import {
 import { APP_CONSTANTS } from '../../shared/constants/app.constants';
 import { postPortfolioSummary } from '../../shared/services/sightfi-api';
 import { formatCurrencyValue } from '../../shared/utils/currency';
-
-type AssetType = 'Stock' | 'ETF' | 'Crypto' | 'Bond' | 'Cash';
-type Region = 'US' | 'China' | 'Europe' | 'Global' | 'N/A';
-type Sector = 'Technology' | 'Finance' | 'Healthcare' | 'Consumer' | 'Energy' | 'N/A';
+import {
+  ASSET_TYPES,
+  PORTFOLIO_REGIONS,
+  PORTFOLIO_SECTORS,
+} from './portfolio.constants';
+import type { AssetType, Region, Sector } from './portfolio.constants';
 type ViewType = 'holdings' | 'sector' | 'region' | 'allocation';
 
 interface Holding {
@@ -244,7 +246,7 @@ export function AssetsPage({ quotes, locale, isDark, currency }: AssetsPageProps
     setSummaryError(null);
     try {
       const result = await postPortfolioSummary({
-        riskProfile: APP_CONSTANTS.mockRiskProfile,
+        riskProfile: APP_CONSTANTS.defaultRiskProfile,
         positions: holdings
           .filter((item) => item.type !== 'Cash')
           .map((item) => ({
@@ -719,7 +721,7 @@ export function AssetsPage({ quotes, locale, isDark, currency }: AssetsPageProps
                         onChange={(event) => setField('type', event.target.value as AssetType)}
                         className={`w-full appearance-none rounded-xl border px-3 py-2 text-sm outline-none ${inputClass}`}
                       >
-                        {['Stock', 'ETF', 'Crypto', 'Bond', 'Cash'].map((type) => (
+                        {ASSET_TYPES.map((type) => (
                           <option key={type} value={type}>
                             {type}
                           </option>
@@ -736,7 +738,7 @@ export function AssetsPage({ quotes, locale, isDark, currency }: AssetsPageProps
                         onChange={(event) => setField('sector', event.target.value as Sector)}
                         className={`w-full appearance-none rounded-xl border px-3 py-2 text-sm outline-none ${inputClass}`}
                       >
-                        {['Technology', 'Finance', 'Healthcare', 'Consumer', 'Energy', 'N/A'].map((sector) => (
+                        {PORTFOLIO_SECTORS.map((sector) => (
                           <option key={sector} value={sector}>
                             {sector}
                           </option>
@@ -753,7 +755,7 @@ export function AssetsPage({ quotes, locale, isDark, currency }: AssetsPageProps
                         onChange={(event) => setField('region', event.target.value as Region)}
                         className={`w-full appearance-none rounded-xl border px-3 py-2 text-sm outline-none ${inputClass}`}
                       >
-                        {['US', 'China', 'Europe', 'Global', 'N/A'].map((region) => (
+                        {PORTFOLIO_REGIONS.map((region) => (
                           <option key={region} value={region}>
                             {region}
                           </option>

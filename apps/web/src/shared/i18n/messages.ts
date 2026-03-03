@@ -25,6 +25,7 @@ const EN_MESSAGES = {
   'error.news': 'Failed to load news feed',
   'error.stream': 'Live stream disconnected, using latest snapshot.',
   'error.sseParse': 'Failed to parse stream payload.',
+  'error.apiRequest': 'API request failed ({status}): {detail}',
   'dashboard.title': 'AI Market Brief',
   'dashboard.description':
     'Minimal but actionable market cockpit: facts first, signals second.',
@@ -66,6 +67,10 @@ const EN_MESSAGES = {
   'ticker.connected': 'Connected',
   'ticker.reconnecting': 'Reconnecting',
   'ticker.source': 'Source',
+  'shell.dataSource': 'Data Source',
+  'shell.bffGateway': 'BFF Gateway',
+  'shell.zeroClientKey': 'No Client Keys',
+  'shell.lastSync': 'Last Sync',
   'intel.title': 'Fact Stream',
   'intel.hubTitle': 'Global Intelligence Hub',
   'intel.hubSubtitle':
@@ -77,11 +82,14 @@ const EN_MESSAGES = {
   'intel.sync.synced': 'Synced',
   'intel.marketStrip': 'Realtime Snapshot',
   'intel.section.facts': 'Objective Fact Stream',
+  'intel.timeline.title': 'News Timeline',
+  'intel.timeline.subtitle': 'Grouped by time and source for faster scanning.',
   'intel.search.placeholder': 'Search by topic, region, symbol...',
   'intel.limit.label': 'Limit',
   'intel.refreshing': 'Refreshing...',
   'intel.refresh': 'Refresh Facts',
   'intel.emptyFiltered': 'No fact items for the current filter.',
+  'intel.timeline.empty': 'No fact items match the current filter.',
   'intel.filter.all': 'All',
   'intel.filter.macro': 'Macro',
   'intel.filter.earnings': 'Earnings',
@@ -89,6 +97,7 @@ const EN_MESSAGES = {
   'intel.filter.crypto': 'Crypto',
   'intel.filter.general': 'General',
   'intel.source.link': 'Source',
+  'intel.source.unknown': 'Unknown source',
   'intel.aiBrief.title': 'AI Brief (Bullet Points)',
   'intel.aiBrief.fallback1':
     'Fact coverage is currently limited. Wait for the next verified update.',
@@ -106,6 +115,7 @@ const EN_MESSAGES = {
     'Analysis complete: "{question}"\n- Fact density is low now.\n- Action: wait for next verified data batch.',
   'intel.chat.placeholder': 'Ask for analysis...',
   'intel.chat.send': 'Send',
+  'intel.chat.quickTitle': 'Quick Prompts',
   'intel.quickPrompt.1': 'Assess downside risk',
   'intel.quickPrompt.2': 'Summarize today factors',
   'intel.quickPrompt.3': 'Check concentration risk',
@@ -146,9 +156,19 @@ const EN_MESSAGES = {
   'map.region.na': 'North America',
   'map.region.sa': 'Latin America',
   'map.region.eu': 'Europe',
+  'map.region.me': 'Middle East',
   'map.region.af': 'Africa',
   'map.region.as': 'Asia Pacific',
   'map.region.oc': 'Oceania',
+  'map.monitor.title': 'Global financial-zone monitor',
+  'map.focus.all': 'All',
+  'map.focus.rates': 'Rates',
+  'map.focus.energy': 'Energy',
+  'map.focus.supply': 'Supply',
+  'map.focus.emerging': 'Emerging',
+  'map.score': 'Geopolitical heat score',
+  'map.noRegion': 'No region available for current filter.',
+  'map.source': 'Source',
 } as const;
 
 const ZH_MESSAGES: Record<keyof typeof EN_MESSAGES, string> = {
@@ -176,6 +196,7 @@ const ZH_MESSAGES: Record<keyof typeof EN_MESSAGES, string> = {
   'error.news': '新闻加载失败',
   'error.stream': '实时流断开，已切换快照模式。',
   'error.sseParse': '实时数据解析失败。',
+  'error.apiRequest': '接口请求失败（{status}）：{detail}',
   'dashboard.title': 'AI 市场摘要',
   'dashboard.description': '保持简约但高信息密度：先事实，再信号。',
   'dashboard.aiInsight': 'AI 观点',
@@ -215,6 +236,10 @@ const ZH_MESSAGES: Record<keyof typeof EN_MESSAGES, string> = {
   'ticker.connected': '已连接',
   'ticker.reconnecting': '重连中',
   'ticker.source': '来源',
+  'shell.dataSource': '数据链路',
+  'shell.bffGateway': 'BFF 网关',
+  'shell.zeroClientKey': '客户端零密钥',
+  'shell.lastSync': '最近同步',
   'intel.title': '事实流',
   'intel.hubTitle': '全球情报中心',
   'intel.hubSubtitle': '以事实为先，低噪声呈现跨市场关键信号。',
@@ -225,11 +250,14 @@ const ZH_MESSAGES: Record<keyof typeof EN_MESSAGES, string> = {
   'intel.sync.synced': '已同步',
   'intel.marketStrip': '实时快照',
   'intel.section.facts': '客观事实流',
+  'intel.timeline.title': '新闻时间线',
+  'intel.timeline.subtitle': '按时间与来源分组，提升扫描效率。',
   'intel.search.placeholder': '按主题、地区、代码搜索...',
   'intel.limit.label': '数量',
   'intel.refreshing': '刷新中...',
   'intel.refresh': '刷新事实流',
   'intel.emptyFiltered': '当前筛选条件下暂无事实流。',
+  'intel.timeline.empty': '当前筛选条件下暂无事实。',
   'intel.filter.all': '全部',
   'intel.filter.macro': '宏观',
   'intel.filter.earnings': '财报',
@@ -237,6 +265,7 @@ const ZH_MESSAGES: Record<keyof typeof EN_MESSAGES, string> = {
   'intel.filter.crypto': '加密',
   'intel.filter.general': '综合',
   'intel.source.link': '来源',
+  'intel.source.unknown': '未知来源',
   'intel.aiBrief.title': 'AI 简报（要点）',
   'intel.aiBrief.fallback1': '当前事实密度较低，建议等待下一批可验证更新。',
   'intel.aiBrief.fallback2': '在不确定阶段避免大幅调整单一仓位。',
@@ -251,6 +280,7 @@ const ZH_MESSAGES: Record<keyof typeof EN_MESSAGES, string> = {
     '已完成分析：“{question}”\n- 当前事实密度偏低。\n- 建议动作：等待下一批可验证数据再决策。',
   'intel.chat.placeholder': '输入你的问题...',
   'intel.chat.send': '发送',
+  'intel.chat.quickTitle': '快捷问题',
   'intel.quickPrompt.1': '评估下行风险',
   'intel.quickPrompt.2': '总结今日驱动',
   'intel.quickPrompt.3': '检查集中度风险',
@@ -291,9 +321,19 @@ const ZH_MESSAGES: Record<keyof typeof EN_MESSAGES, string> = {
   'map.region.na': '北美',
   'map.region.sa': '拉美',
   'map.region.eu': '欧洲',
+  'map.region.me': '中东',
   'map.region.af': '非洲',
   'map.region.as': '亚太',
   'map.region.oc': '大洋洲',
+  'map.monitor.title': '全球金融区热点监测',
+  'map.focus.all': '全部',
+  'map.focus.rates': '利率',
+  'map.focus.energy': '能源',
+  'map.focus.supply': '供应链',
+  'map.focus.emerging': '新兴',
+  'map.score': '地缘情报热度评分',
+  'map.noRegion': '当前筛选无可用区域。',
+  'map.source': '原文',
 };
 
 const DICTIONARY = {
@@ -313,7 +353,16 @@ export function resolveLocale(rawLocale: string): Locale {
   return rawLocale.toLowerCase().startsWith('zh') ? 'zh' : 'en';
 }
 
-export function t(key: MessageKey): string {
+export function t(
+  key: MessageKey,
+  vars?: Record<string, string | number>,
+): string {
   const bundle = DICTIONARY[activeLocale];
-  return bundle[key] ?? EN_MESSAGES[key] ?? key;
+  const template = bundle[key] ?? EN_MESSAGES[key] ?? key;
+  if (!vars) return template;
+  return Object.entries(vars).reduce(
+    (text, [name, value]) =>
+      text.replace(new RegExp(`\\{${name}\\}`, 'g'), String(value)),
+    template,
+  );
 }

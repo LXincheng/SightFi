@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { HealthStatus, MarketQuote, NewsFact, ProviderFlags } from '@sightfi/shared';
+import type { Locale } from '../i18n/messages';
 import { t } from '../i18n/messages';
 import { getFacts, getHealth, getProviderFlags, getQuotes } from '../services/sightfi-api';
 
@@ -12,7 +13,7 @@ export interface BootstrapState {
   providers: ProviderFlags | null;
 }
 
-export function useBootstrap(): BootstrapState {
+export function useBootstrap(locale: Locale): BootstrapState {
   const [state, setState] = useState<BootstrapState>({
     loading: true,
     error: null,
@@ -31,7 +32,7 @@ export function useBootstrap(): BootstrapState {
         const [health, quotes, facts, providers] = await Promise.all([
           getHealth(),
           getQuotes(),
-          getFacts(),
+          getFacts(undefined, undefined, locale),
           getProviderFlags(),
         ]);
         if (abortController.signal.aborted) return;
@@ -55,7 +56,7 @@ export function useBootstrap(): BootstrapState {
 
     void load();
     return () => abortController.abort();
-  }, []);
+  }, [locale]);
 
   return state;
 }
