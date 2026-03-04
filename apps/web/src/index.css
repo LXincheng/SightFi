@@ -2,18 +2,42 @@
 
 :root {
   color-scheme: light;
+  --sf-font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "PingFang SC", "Helvetica Neue", "Microsoft YaHei", sans-serif;
+  --sf-font-size-caption: 13px;
+  --sf-font-size-body: 15px;
+  --sf-font-size-title: 18px;
+  --sf-font-size-headline: 22px;
+  --sf-chart-font-axis: 13px;
+  --sf-chart-font-legend: 13px;
+  --sf-chart-font-tooltip: 13px;
+  --sf-chart-font-title: 17px;
+  --sf-bg: #f2f7fc;
+  --sf-text: #0f172a;
+  --sf-muted: #64748b;
+  --sf-glass-bg: rgba(255, 255, 255, 0.65);
+  --sf-glass-border: rgba(226, 232, 240, 0.5);
+  --sf-glass-shadow: 0 24px 48px rgba(15, 23, 42, 0.06);
+  --sf-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .dark {
   color-scheme: dark;
+  --sf-bg: #040913;
+  --sf-text: #f8fafc;
+  --sf-muted: #94a3b8;
+  --sf-glass-bg: rgba(3, 9, 19, 0.35);
+  --sf-glass-border: rgba(51, 65, 85, 0.4);
+  --sf-glass-shadow: 0 24px 56px rgba(0, 0, 0, 0.5);
 }
 
 * {
   box-sizing: border-box;
   transition:
-    background-color 180ms ease,
-    border-color 180ms ease,
-    color 140ms ease;
+    background-color 180ms var(--sf-ease),
+    border-color 180ms var(--sf-ease),
+    color 140ms var(--sf-ease),
+    box-shadow 220ms var(--sf-ease),
+    transform 220ms var(--sf-ease);
 }
 
 html,
@@ -25,34 +49,59 @@ body,
 
 body {
   min-height: 100%;
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "PingFang SC", "Helvetica Neue", "Microsoft YaHei", sans-serif;
-  font-size: 16px;
+  font-family: var(--sf-font-family);
+  font-size: var(--sf-font-size-body);
   line-height: 1.5;
   letter-spacing: 0.005em;
+  color: var(--sf-text);
+  background-color: var(--sf-bg);
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
+input,
+button,
+select,
+textarea,
 .font-sans,
 .font-mono {
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "PingFang SC", "Helvetica Neue", "Microsoft YaHei", sans-serif;
+  font-family: var(--sf-font-family);
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--sf-font-family);
+  letter-spacing: 0.01em;
+  font-weight: 650;
 }
 
 .dark body {
   background:
-    radial-gradient(1200px 600px at 10% -10%, rgba(16, 185, 129, 0.12), transparent 45%),
-    radial-gradient(1000px 520px at 95% -15%, rgba(56, 189, 248, 0.1), transparent 40%),
-    #090c12;
+    radial-gradient(1200px 620px at 8% -10%, rgba(16, 185, 129, 0.14), transparent 45%),
+    radial-gradient(1000px 540px at 94% -15%, rgba(56, 189, 248, 0.11), transparent 42%),
+    radial-gradient(900px 520px at 52% 105%, rgba(14, 116, 144, 0.12), transparent 48%),
+    var(--sf-bg);
 }
 
 :root:not(.dark) body {
   background:
-    radial-gradient(1200px 600px at 10% -10%, rgba(16, 185, 129, 0.1), transparent 45%),
-    radial-gradient(1000px 520px at 95% -15%, rgba(59, 130, 246, 0.08), transparent 40%),
-    #f4f7fb;
+    radial-gradient(1200px 620px at 8% -10%, rgba(16, 185, 129, 0.12), transparent 45%),
+    radial-gradient(1000px 540px at 95% -15%, rgba(59, 130, 246, 0.1), transparent 42%),
+    radial-gradient(900px 520px at 55% 105%, rgba(14, 165, 233, 0.08), transparent 48%),
+    var(--sf-bg);
 }
 
 .glass-card {
-  backdrop-filter: blur(18px) saturate(160%);
-  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  background: var(--sf-glass-bg);
+  border-color: var(--sf-glass-border);
+  box-shadow: var(--sf-glass-shadow);
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
 }
 
 .scrollbar-thin::-webkit-scrollbar {
@@ -84,4 +133,36 @@ body {
 
 .safe-bottom {
   padding-bottom: max(8px, env(safe-area-inset-bottom));
+}
+
+.dashboard-chart .recharts-cartesian-axis-tick-value,
+.dashboard-chart .recharts-legend-item-text,
+.dashboard-chart .recharts-label {
+  font-size: var(--sf-chart-font-axis);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.dashboard-chart .recharts-tooltip-wrapper {
+  font-size: var(--sf-chart-font-tooltip);
+}
+
+.dashboard-chart-title {
+  font-size: var(--sf-chart-font-title);
+  font-weight: 750;
+  letter-spacing: 0.015em;
+}
+
+.dashboard-chart-body {
+  font-size: var(--sf-font-size-body);
+  font-weight: 550;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

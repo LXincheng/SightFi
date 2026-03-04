@@ -1,33 +1,15 @@
 import { useMemo, useState } from 'react';
 import type { NewsFact, Sentiment } from '@sightfi/shared';
 import { motion } from 'motion/react';
-import { ComposableMap, Geographies, Geography, Line, Marker, ZoomableGroup } from 'react-simple-maps';
-import { ExternalLink, Minus, Plus, RotateCcw } from 'lucide-react';
+import { ComposableMap, Geographies, Geography, Marker, ZoomableGroup } from 'react-simple-maps';
+import { Minus, Plus, RotateCcw } from 'lucide-react';
 import worldData from 'world-atlas/countries-110m.json';
 import { formatDateTimeWithZone } from '../../../shared/i18n/format';
 import type { Locale, MessageKey } from '../../../shared/i18n/messages';
 import { t } from '../../../shared/i18n/messages';
 
-type TopicFilter = 'all' | 'politics' | 'finance';
-type NewsTopic = Exclude<TopicFilter, 'all'>;
-type ContinentId = 'na' | 'sa' | 'eu' | 'af' | 'as' | 'oc';
+type ContinentId = 'na' | 'sa' | 'eu' | 'af' | 'as' | 'me' | 'oc';
 type SimpleGeo = { rsmKey: string } & Record<string, unknown>;
-
-interface ContinentConfig {
-  id: ContinentId;
-  nameKey: MessageKey;
-  coordinates: [number, number];
-  center: [number, number];
-  zoom: number;
-}
-
-interface ContinentInsight extends ContinentConfig {
-  score: number;
-  sentiment: Sentiment;
-  news: NewsFact[];
-  politicsNews: NewsFact[];
-  financeNews: NewsFact[];
-}
 
 interface WorldMapNewsProps {
   locale: Locale;
@@ -35,33 +17,34 @@ interface WorldMapNewsProps {
   facts: NewsFact[];
 }
 
-interface ContinentBucket {
-  all: NewsFact[];
-  politics: NewsFact[];
-  finance: NewsFact[];
+interface ContinentConfig {
+  id: ContinentId;
+  nameKey: MessageKey;
+  marker: [number, number];
+  center: [number, number];
+  zoom: number;
+}
+
+interface RegionInsight extends ContinentConfig {
+  score: number;
+  sentiment: Sentiment;
+  news: NewsFact[];
 }
 
 const CONTINENT_CONFIGS: ContinentConfig[] = [
-  { id: 'na', nameKey: 'map.region.na', coordinates: [-100, 38], center: [-95, 32], zoom: 1.5 },
-  { id: 'sa', nameKey: 'map.region.sa', coordinates: [-61, -15], center: [-60, -20], zoom: 1.65 },
-  { id: 'eu', nameKey: 'map.region.eu', coordinates: [13, 52], center: [12, 49], zoom: 2.15 },
-  { id: 'af', nameKey: 'map.region.af', coordinates: [21, 3], center: [20, 0], zoom: 1.85 },
-  { id: 'as', nameKey: 'map.region.as', coordinates: [110, 28], center: [102, 27], zoom: 1.75 },
-  { id: 'oc', nameKey: 'map.region.oc', coordinates: [135, -26], center: [132, -24], zoom: 2.2 },
-];
-
-const CONTINENT_LINKS: Array<{ from: ContinentId; to: ContinentId }> = [
-  { from: 'na', to: 'eu' },
-  { from: 'na', to: 'sa' },
-  { from: 'eu', to: 'af' },
-  { from: 'eu', to: 'as' },
-  { from: 'as', to: 'oc' },
-  { from: 'as', to: 'af' },
+  { id: 'na', nameKey: 'map.region.na', marker: [-100, 39], center: [-96, 36], zoom: 1.65 },
+  { id: 'sa', nameKey: 'map.region.sa', marker: [-63, -17], center: [-62, -19], zoom: 1.72 },
+  { id: 'eu', nameKey: 'map.region.eu', marker: [11, 51], center: [12, 50], zoom: 2.12 },
+  { id: 'me', nameKey: 'map.region.me', marker: [45, 29], center: [46, 28], zoom: 2.0 },
+  { id: 'af', nameKey: 'map.region.af', marker: [21, 4], center: [20, 2], zoom: 1.9 },
+  { id: 'as', nameKey: 'map.region.as', marker: [108, 27], center: [102, 27], zoom: 1.84 },
+  { id: 'oc', nameKey: 'map.region.oc', marker: [136, -25], center: [134, -24], zoom: 2.22 },
 ];
 
 const NA_SYMBOLS = new Set(['SPY', 'QQQ', 'VTI', 'AAPL', 'MSFT', 'NVDA', 'TSLA', 'META', 'AMZN', 'DIA', 'IWM']);
 const SA_SYMBOLS = new Set(['EWZ', 'EWW', 'ILF', 'ARGT', 'MEXX']);
 const EU_SYMBOLS = new Set(['VGK', 'EZU', 'EWG', 'EWU', 'STOXX50E', 'DAX']);
+const ME_SYMBOLS = new Set(['QAT', 'UAE', 'MENA', 'GULF']);
 const AF_SYMBOLS = new Set(['EZA', 'NGE', 'AFK']);
 const AS_SYMBOLS = new Set(['HSTECH', 'HSI', '0700.HK', 'BABA', 'JD', 'TCEHY', 'EWJ', 'INDA', 'FXI', 'MCHI']);
 const OC_SYMBOLS = new Set(['EWA', 'ENZL', 'AORD']);
@@ -70,103 +53,85 @@ const CONTINENT_KEYWORDS: Record<ContinentId, string[]> = {
   na: ['united states', 'u.s.', 'new york', 'canada', 'north america', 'federal reserve', '华尔街', '美联储', '美国'],
   sa: ['latin america', 'brazil', 'mexico', 'argentina', 'chile', 'south america', '拉美', '巴西', '墨西哥'],
   eu: ['europe', 'eurozone', 'ecb', 'germany', 'france', 'uk', 'london', '欧盟', '欧洲', '英国'],
-  af: ['africa', 'south africa', 'nigeria', 'egypt', 'kenya', '非洲', '南非', '尼日利亚'],
+  me: ['middle east', 'saudi', 'uae', 'dubai', 'qatar', 'israel', 'iran', 'iraq', 'turkey', 'egypt', 'oil', 'opec', '中东', '沙特', '伊朗', '以色列', '石油'],
+  af: ['africa', 'south africa', 'nigeria', 'kenya', '非洲', '南非', '尼日利亚'],
   as: ['china', 'hong kong', 'japan', 'korea', 'taiwan', 'beijing', 'shanghai', 'india', 'singapore', '亚洲', '中国', '日本', '印度'],
   oc: ['australia', 'new zealand', 'oceania', 'sydney', 'melbourne', '大洋洲', '澳大利亚', '新西兰'],
 };
 
-const POLITICS_KEYWORDS = [
-  'election',
-  'government',
-  'president',
-  'prime minister',
-  'tariff',
-  'sanction',
-  'war',
-  'conflict',
-  'policy',
-  'parliament',
-  '外交',
-  '制裁',
-  '战争',
-  '政府',
-  '政策',
-  '选举',
-];
+const SOURCE_REGION_HINTS: Record<ContinentId, string[]> = {
+  na: ['cnbc', 'wsj', 'bloomberg', 'nytimes', 'marketwatch'],
+  sa: ['buenos', 'sao paulo', 'latam'],
+  eu: ['bbc', 'ft.com', 'euronews', 'ecb', 'reuters'],
+  me: ['aljazeera', 'arabianbusiness', 'gulf', 'middle east'],
+  af: ['africa', 'nigeria', 'southafrica'],
+  as: ['nikkei', 'caixin', 'scmp', 'asia', 'japan', 'china'],
+  oc: ['australia', 'anz', 'newzealand'],
+};
 
-const FINANCE_KEYWORDS = [
-  'market',
-  'stock',
-  'equity',
-  'etf',
-  'bond',
-  'yield',
-  'rate',
-  'inflation',
-  'gdp',
-  'earnings',
-  'bank',
-  'finance',
-  'oil',
-  'currency',
-  '涨跌',
-  '收益',
-  '汇率',
-  '利率',
-  '通胀',
-  '财报',
-  '股票',
-  '债券',
-];
-
-function detectContinentByKeyword(text: string): ContinentId | null {
+function detectByKeyword(text: string): ContinentId | null {
   const normalized = text.toLowerCase();
   let bestRegion: ContinentId | null = null;
   let bestScore = 0;
 
-  (Object.keys(CONTINENT_KEYWORDS) as ContinentId[]).forEach((region) => {
-    const score = CONTINENT_KEYWORDS[region].reduce((sum, keyword) => (normalized.includes(keyword) ? sum + 1 : sum), 0);
+  (Object.keys(CONTINENT_KEYWORDS) as ContinentId[]).forEach((continent) => {
+    const score = CONTINENT_KEYWORDS[continent].reduce((sum, keyword) => (normalized.includes(keyword) ? sum + 1 : sum), 0);
     if (score > bestScore) {
       bestScore = score;
-      bestRegion = region;
+      bestRegion = continent;
     }
   });
 
   return bestScore > 0 ? bestRegion : null;
 }
 
-function detectContinentFromFact(fact: NewsFact): ContinentId | null {
+function detectBySource(source: string): ContinentId | null {
+  const normalized = source.toLowerCase();
+  let best: ContinentId | null = null;
+  let bestScore = 0;
+  (Object.keys(SOURCE_REGION_HINTS) as ContinentId[]).forEach((region) => {
+    const score = SOURCE_REGION_HINTS[region].reduce((sum, key) => (normalized.includes(key) ? sum + 1 : sum), 0);
+    if (score > bestScore) {
+      bestScore = score;
+      best = region;
+    }
+  });
+  return bestScore > 0 ? best : null;
+}
+
+function hashFallbackRegion(fact: NewsFact): ContinentId {
+  const seed = `${fact.id}-${fact.source}-${fact.headline}`;
+  let hash = 0;
+  for (let index = 0; index < seed.length; index += 1) {
+    hash = (hash << 5) - hash + seed.charCodeAt(index);
+    hash |= 0;
+  }
+  const regionList: ContinentId[] = ['na', 'sa', 'eu', 'me', 'af', 'as', 'oc'];
+  return regionList[Math.abs(hash) % regionList.length] ?? 'na';
+}
+
+function detectContinent(fact: NewsFact): ContinentId | null {
   const symbols = fact.symbols.map((item) => item.toUpperCase());
   if (symbols.some((item) => NA_SYMBOLS.has(item))) return 'na';
   if (symbols.some((item) => SA_SYMBOLS.has(item))) return 'sa';
   if (symbols.some((item) => EU_SYMBOLS.has(item))) return 'eu';
+  if (symbols.some((item) => ME_SYMBOLS.has(item))) return 'me';
   if (symbols.some((item) => AF_SYMBOLS.has(item))) return 'af';
   if (symbols.some((item) => AS_SYMBOLS.has(item))) return 'as';
   if (symbols.some((item) => OC_SYMBOLS.has(item))) return 'oc';
-
-  return detectContinentByKeyword(`${fact.headline} ${fact.factSummary} ${fact.source}`);
-}
-
-function classifyTopic(fact: NewsFact): NewsTopic {
-  const normalized = `${fact.headline} ${fact.factSummary}`.toLowerCase();
-  const politicsScore = POLITICS_KEYWORDS.reduce((sum, keyword) => (normalized.includes(keyword) ? sum + 1 : sum), 0);
-  const financeScore = FINANCE_KEYWORDS.reduce((sum, keyword) => (normalized.includes(keyword) ? sum + 1 : sum), 0);
-
-  return politicsScore > financeScore ? 'politics' : 'finance';
-}
-
-function regionColor(sentiment: Sentiment): string {
-  if (sentiment === 'bullish') return '#22c55e';
-  if (sentiment === 'bearish') return '#f43f5e';
-  return '#0ea5e9';
+  const byKeyword = detectByKeyword(`${fact.headline} ${fact.factSummary} ${fact.source}`);
+  if (byKeyword) return byKeyword;
+  const bySource = detectBySource(fact.source);
+  if (bySource) return bySource;
+  return hashFallbackRegion(fact);
 }
 
 function scoreFromNews(news: NewsFact[]): number {
-  if (news.length === 0) return 25;
+  if (news.length === 0) return 20;
   const latestTs = new Date(news[0]?.publishedAt ?? 0).getTime();
   const recencyHours = Math.max(0, (Date.now() - latestTs) / (1000 * 60 * 60));
-  const recencyBonus = Math.max(0, 16 - recencyHours);
-  return Math.min(96, Math.round(42 + news.length * 8 + recencyBonus));
+  const recencyBonus = Math.max(0, 14 - recencyHours);
+  return Math.min(96, Math.round(36 + news.length * 9 + recencyBonus));
 }
 
 function sentimentFromNews(news: NewsFact[]): Sentiment {
@@ -177,156 +142,80 @@ function sentimentFromNews(news: NewsFact[]): Sentiment {
   return 'neutral';
 }
 
-function isHttpUrl(value?: string): value is string {
-  return value ? /^https?:\/\//i.test(value) : false;
-}
-
-function buildEmptyBuckets(): Map<ContinentId, ContinentBucket> {
-  return new Map(
-    CONTINENT_CONFIGS.map((item) => [
-      item.id,
-      {
-        all: [],
-        politics: [],
-        finance: [],
-      },
-    ]),
-  );
-}
-
-function getTopicNews(region: ContinentInsight, topic: NewsTopic): NewsFact[] {
-  return topic === 'politics' ? region.politicsNews : region.financeNews;
+function regionTone(sentiment: Sentiment): string {
+  if (sentiment === 'bullish') return '#16a34a';
+  if (sentiment === 'bearish') return '#dc2626';
+  return '#0891b2';
 }
 
 export function WorldMapNews({ locale, isDark, facts }: WorldMapNewsProps) {
   const [activeId, setActiveId] = useState<ContinentId>('na');
-  const [hoveredId, setHoveredId] = useState<ContinentId | null>(null);
-  const [topicFilter, setTopicFilter] = useState<TopicFilter>('all');
   const [zoomFactor, setZoomFactor] = useState(1);
 
-  const regions = useMemo<ContinentInsight[]>(() => {
-    const buckets = buildEmptyBuckets();
+  const regions = useMemo<RegionInsight[]>(() => {
+    const buckets = new Map<ContinentId, NewsFact[]>(CONTINENT_CONFIGS.map((item) => [item.id, []]));
     const sortedFacts = [...facts].sort(
       (left, right) => new Date(right.publishedAt).getTime() - new Date(left.publishedAt).getTime(),
     );
 
     sortedFacts.forEach((fact) => {
-      const regionId = detectContinentFromFact(fact);
-      if (!regionId) return;
-      const topic = classifyTopic(fact);
-      const bucket = buckets.get(regionId);
+      const continent = detectContinent(fact);
+      if (!continent) return;
+      const bucket = buckets.get(continent);
       if (!bucket) return;
-
-      bucket.all.push(fact);
-      if (topic === 'politics') bucket.politics.push(fact);
-      if (topic === 'finance') bucket.finance.push(fact);
+      bucket.push(fact);
     });
 
     return CONTINENT_CONFIGS.map((config) => {
-      const bucket = buckets.get(config.id);
-      const allNews = bucket?.all.slice(0, 6) ?? [];
-      const politicsNews = bucket?.politics.slice(0, 4) ?? [];
-      const financeNews = bucket?.finance.slice(0, 4) ?? [];
-
+      const news = (buckets.get(config.id) ?? []).slice(0, 5);
       return {
         ...config,
-        score: scoreFromNews(allNews),
-        sentiment: sentimentFromNews(allNews),
-        news: allNews,
-        politicsNews,
-        financeNews,
+        score: scoreFromNews(news),
+        sentiment: sentimentFromNews(news),
+        news,
       };
     });
   }, [facts]);
 
   const activeRegion = useMemo(() => regions.find((item) => item.id === activeId) ?? regions[0] ?? null, [activeId, regions]);
-
-  const focusedRegionId = hoveredId ?? activeRegion?.id ?? null;
-
-  const linkCoordinates = useMemo(
-    () =>
-      CONTINENT_LINKS.map((item) => {
-        const from = regions.find((region) => region.id === item.from);
-        const to = regions.find((region) => region.id === item.to);
-        if (!from || !to) return null;
-
-        const highlighted = focusedRegionId ? from.id === focusedRegionId || to.id === focusedRegionId : false;
-        return {
-          id: `${item.from}-${item.to}`,
-          from: from.coordinates,
-          to: to.coordinates,
-          highlighted,
-        };
-      }).filter(
-        (
-          item,
-        ): item is {
-          id: string;
-          from: [number, number];
-          to: [number, number];
-          highlighted: boolean;
-        } => item !== null,
-      ),
-    [focusedRegionId, regions],
+  const lowCoverageCount = useMemo(
+    () => regions.filter((region) => region.news.length < 2).length,
+    [regions],
   );
 
-  const topicLabels: Record<TopicFilter, string> = {
-    all: t('map.focus.all'),
-    politics: t('map.focus.politics'),
-    finance: t('map.focus.finance'),
-  };
-
-  const visibleTopics = topicFilter === 'all' ? (['politics', 'finance'] as NewsTopic[]) : [topicFilter];
-  const activeCenter = activeRegion?.center ?? [10, 15];
-  const activeZoom = (activeRegion?.zoom ?? 1) * zoomFactor;
-  const mapZoom = Math.min(4.2, Math.max(1, activeZoom));
-
-  const surfaceClass = isDark
-    ? 'border-slate-700/60 bg-slate-950/70'
-    : 'border-slate-200/90 bg-white/88';
-
+  const center = activeRegion?.center ?? [8, 14];
+  const zoom = Math.min(4.2, Math.max(1, (activeRegion?.zoom ?? 1) * zoomFactor));
+  const surfaceClass = isDark ? 'border-slate-700/65 bg-slate-950/74' : 'border-slate-200/90 bg-white/90';
+  const chipClass = isDark ? 'border-slate-700 text-slate-300 hover:border-slate-500' : 'border-slate-200 text-slate-700 hover:border-slate-300';
+  const titleClass = isDark ? 'text-slate-100' : 'text-slate-900';
   const dimClass = isDark ? 'text-slate-400' : 'text-slate-600';
-  const primaryClass = isDark ? 'text-slate-100' : 'text-slate-900';
 
   return (
-    <div className="relative h-full w-full overflow-hidden rounded-3xl">
+    <div className={`relative h-full w-full overflow-hidden rounded-2xl border ${surfaceClass}`}>
       <div
         className={`absolute inset-0 ${
           isDark
-            ? 'bg-[radial-gradient(circle_at_20%_18%,rgba(14,116,144,0.22),transparent_44%),radial-gradient(circle_at_82%_88%,rgba(15,118,110,0.18),transparent_48%),#020617]'
-            : 'bg-[radial-gradient(circle_at_20%_18%,rgba(56,189,248,0.18),transparent_42%),radial-gradient(circle_at_82%_88%,rgba(45,212,191,0.15),transparent_45%),#f4f8fc]'
+            ? 'bg-[radial-gradient(circle_at_14%_10%,rgba(8,145,178,0.14),transparent_42%),radial-gradient(circle_at_84%_86%,rgba(2,132,199,0.12),transparent_44%),#020617]'
+            : 'bg-[radial-gradient(circle_at_14%_10%,rgba(56,189,248,0.14),transparent_40%),radial-gradient(circle_at_84%_86%,rgba(125,211,252,0.12),transparent_44%),#eff6ff]'
         }`}
       />
 
-      <div className="relative z-10 flex h-full flex-col p-2 md:p-3">
-        <div className={`rounded-2xl border px-3 py-2.5 md:px-4 md:py-3 ${surfaceClass}`}>
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="min-w-0">
-              <div className={`truncate text-sm font-semibold tracking-wide md:text-base ${primaryClass}`}>{t('map.monitor.title')}</div>
-              <div className={`text-xs md:text-sm ${dimClass}`}>{t('dashboard.map.hint')}</div>
-            </div>
-
-            <div className="ml-auto flex items-center gap-1 rounded-xl border border-slate-400/20 bg-slate-900/10 p-1 backdrop-blur">
-              {(['all', 'politics', 'finance'] as const).map((item) => (
-                <button
-                  key={item}
-                  type="button"
-                  onClick={() => setTopicFilter(item)}
-                  className={`rounded-lg px-2.5 py-1 text-xs font-medium transition md:text-sm ${
-                    topicFilter === item
-                      ? 'bg-cyan-500/20 text-cyan-300'
-                      : isDark
-                        ? 'text-slate-400 hover:bg-white/5 hover:text-slate-100'
-                        : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                  }`}
-                >
-                  {topicLabels[item]}
-                </button>
-              ))}
-            </div>
+      <div className="relative z-10 flex h-full flex-col p-2.5 md:p-3">
+        <div className="mb-2.5 flex flex-wrap items-center gap-2">
+          <div
+            className={`rounded-full border px-2.5 py-1 text-sm font-medium ${
+              lowCoverageCount > 0
+                ? isDark
+                  ? 'border-amber-500/35 bg-amber-500/10 text-amber-300'
+                  : 'border-amber-400/45 bg-amber-100/75 text-amber-700'
+                : isDark
+                  ? 'border-emerald-500/35 bg-emerald-500/10 text-emerald-300'
+                  : 'border-emerald-400/45 bg-emerald-100/80 text-emerald-700'
+            }`}
+          >
+            {t('map.coverage.label')}: {lowCoverageCount > 0 ? t('map.coverage.low') : t('map.coverage.ok')}
           </div>
-
-          <div className="mt-2 flex gap-1.5 overflow-x-auto pb-1">
+          <div className="flex min-w-0 flex-1 gap-1.5 overflow-x-auto pb-1">
             {regions.map((region) => {
               const active = region.id === activeId;
               return (
@@ -334,14 +223,10 @@ export function WorldMapNews({ locale, isDark, facts }: WorldMapNewsProps) {
                   key={region.id}
                   type="button"
                   onClick={() => setActiveId(region.id)}
-                  onMouseEnter={() => setHoveredId(region.id)}
-                  onMouseLeave={() => setHoveredId(null)}
-                  className={`shrink-0 rounded-full border px-2.5 py-1 text-xs transition md:text-sm ${
+                  className={`shrink-0 rounded-full border px-2.5 py-1 text-sm font-medium transition ${
                     active
-                      ? 'border-cyan-400/40 bg-cyan-500/15 text-cyan-300'
-                      : isDark
-                        ? 'border-slate-700 text-slate-300 hover:border-slate-500 hover:bg-slate-800/60'
-                        : 'border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-white'
+                      ? 'border-cyan-400/50 bg-cyan-500/14 text-cyan-300'
+                      : chipClass
                   }`}
                 >
                   {t(region.nameKey)} · {region.news.length}
@@ -349,181 +234,142 @@ export function WorldMapNews({ locale, isDark, facts }: WorldMapNewsProps) {
               );
             })}
           </div>
-        </div>
-
-        <div className="mt-2 grid min-h-0 flex-1 grid-cols-1 gap-2 lg:grid-cols-[minmax(0,1.55fr)_minmax(320px,0.85fr)]">
-          <div className={`relative overflow-hidden rounded-2xl border ${surfaceClass}`}>
-            <div className="absolute right-2 top-2 z-20 flex flex-col gap-1 rounded-xl border border-slate-400/20 bg-slate-900/20 p-1.5 backdrop-blur">
-              <button
-                type="button"
-                onClick={() => setZoomFactor((prev) => Math.min(2.25, prev + 0.15))}
-                className={`rounded-md p-1.5 ${isDark ? 'text-slate-200 hover:bg-white/10' : 'text-slate-700 hover:bg-slate-200/70'}`}
-                aria-label={t('map.zoom.in')}
-              >
-                <Plus className="h-3.5 w-3.5" />
-              </button>
-              <button
-                type="button"
-                onClick={() => setZoomFactor((prev) => Math.max(0.78, prev - 0.15))}
-                className={`rounded-md p-1.5 ${isDark ? 'text-slate-200 hover:bg-white/10' : 'text-slate-700 hover:bg-slate-200/70'}`}
-                aria-label={t('map.zoom.out')}
-              >
-                <Minus className="h-3.5 w-3.5" />
-              </button>
-              <button
-                type="button"
-                onClick={() => setZoomFactor(1)}
-                className={`rounded-md p-1.5 ${isDark ? 'text-slate-200 hover:bg-white/10' : 'text-slate-700 hover:bg-slate-200/70'}`}
-                aria-label={t('map.zoom.reset')}
-              >
-                <RotateCcw className="h-3.5 w-3.5" />
-              </button>
-            </div>
-
-            <div className="h-[340px] sm:h-[410px] md:h-[500px] lg:h-full lg:min-h-[560px]">
-              <ComposableMap projection="geoEqualEarth" projectionConfig={{ scale: 170 }} width={980} height={560} style={{ width: '100%', height: '100%' }}>
-                <ZoomableGroup center={activeCenter} zoom={mapZoom} minZoom={1} maxZoom={4.2}>
-                  <Geographies geography={worldData}>
-                    {({ geographies }: { geographies: SimpleGeo[] }) =>
-                      geographies.map((geo: SimpleGeo) => (
-                        <Geography
-                          key={geo.rsmKey}
-                          geography={geo}
-                          style={{
-                            default: {
-                              fill: isDark ? '#0f172a' : '#e6edf7',
-                              outline: 'none',
-                              stroke: isDark ? '#334155' : '#c1d1e5',
-                              strokeWidth: 0.5,
-                            },
-                            hover: {
-                              fill: isDark ? '#152238' : '#dae6f4',
-                              outline: 'none',
-                              stroke: isDark ? '#4b5f7e' : '#a4bdd7',
-                            },
-                            pressed: {
-                              fill: isDark ? '#162841' : '#d4e3f3',
-                              outline: 'none',
-                            },
-                          }}
-                        />
-                      ))
-                    }
-                  </Geographies>
-
-                  {linkCoordinates.map((item, index) => (
-                    <Line
-                      key={item.id}
-                      from={item.from}
-                      to={item.to}
-                      stroke={item.highlighted ? (isDark ? 'rgba(34,211,238,0.65)' : 'rgba(14,116,144,0.45)') : isDark ? 'rgba(71,85,105,0.35)' : 'rgba(148,163,184,0.35)'}
-                      strokeWidth={item.highlighted ? 1.7 : 1.1}
-                      strokeLinecap="round"
-                      strokeDasharray={`${4 + (index % 2)} 5`}
-                    />
-                  ))}
-
-                  {regions.map((region) => {
-                    const active = focusedRegionId === region.id;
-                    return (
-                      <Marker key={region.id} coordinates={region.coordinates}>
-                        <g
-                          className="cursor-pointer"
-                          onClick={() => setActiveId(region.id)}
-                          onMouseEnter={() => setHoveredId(region.id)}
-                          onMouseLeave={() => setHoveredId(null)}
-                        >
-                          <circle r={20} fill="transparent" />
-                          <circle r={active ? 12 : 9} fill={regionColor(region.sentiment)} fillOpacity={0.94} stroke={isDark ? '#020617' : '#ffffff'} strokeWidth={1.5} />
-                          <circle r={active ? 18 : 14} fill="none" stroke={regionColor(region.sentiment)} strokeOpacity={0.4} strokeWidth={1.2} />
-                        </g>
-                      </Marker>
-                    );
-                  })}
-                </ZoomableGroup>
-              </ComposableMap>
-            </div>
-
-            {activeRegion ? (
-              <motion.div
-                key={`summary-${activeRegion.id}`}
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                className={`absolute bottom-2 left-2 right-2 rounded-xl border px-3 py-2 backdrop-blur-md md:left-3 md:right-auto md:min-w-[280px] ${
-                  isDark ? 'border-slate-700/80 bg-slate-950/78' : 'border-slate-200/85 bg-white/88'
-                }`}
-              >
-                <div className={`text-sm font-semibold ${primaryClass}`}>{t(activeRegion.nameKey)}</div>
-                <div className={`mt-1 flex items-center gap-2 text-xs ${dimClass}`}>
-                  <span>{t('map.score')}: {activeRegion.score}</span>
-                  <span>•</span>
-                  <span>{t('map.news.total')}: {activeRegion.news.length}</span>
-                </div>
-              </motion.div>
-            ) : null}
+          <div className={`flex items-center gap-1 rounded-xl border p-1 ${surfaceClass}`}>
+            <button
+              type="button"
+              onClick={() => setZoomFactor((prev) => Math.min(2.3, prev + 0.18))}
+              className={`rounded-md p-1.5 ${isDark ? 'text-slate-200 hover:bg-white/10' : 'text-slate-700 hover:bg-slate-200/70'}`}
+              aria-label={t('map.zoom.in')}
+            >
+              <Plus className="h-3.5 w-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setZoomFactor((prev) => Math.max(0.75, prev - 0.18))}
+              className={`rounded-md p-1.5 ${isDark ? 'text-slate-200 hover:bg-white/10' : 'text-slate-700 hover:bg-slate-200/70'}`}
+              aria-label={t('map.zoom.out')}
+            >
+              <Minus className="h-3.5 w-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setZoomFactor(1)}
+              className={`rounded-md p-1.5 ${isDark ? 'text-slate-200 hover:bg-white/10' : 'text-slate-700 hover:bg-slate-200/70'}`}
+              aria-label={t('map.zoom.reset')}
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+            </button>
           </div>
-
-          <motion.aside
-            key={`${activeRegion?.id ?? 'none'}-${topicFilter}`}
-            initial={{ opacity: 0, x: 10 }}
-            animate={{ opacity: 1, x: 0 }}
-            className={`scrollbar-thin flex min-h-0 flex-col overflow-y-auto rounded-2xl border p-3 md:p-3.5 ${surfaceClass}`}
-          >
-            {activeRegion ? (
-              <div className="space-y-3">
-                {visibleTopics.map((topic) => {
-                  const scopedNews = getTopicNews(activeRegion, topic);
-                  const sectionTitle = topic === 'politics' ? t('map.topic.politics') : t('map.topic.finance');
-
-                  return (
-                    <section key={topic}>
-                      <div className={`mb-2 text-xs font-semibold uppercase tracking-[0.08em] ${dimClass}`}>{sectionTitle}</div>
-                      {scopedNews.length > 0 ? (
-                        <div className="space-y-2.5">
-                          {scopedNews.map((news) => (
-                            <article
-                              key={news.id}
-                              className={`rounded-xl border p-2.5 ${
-                                isDark
-                                  ? 'border-slate-800/85 bg-slate-900/70 hover:bg-slate-900/92'
-                                  : 'border-slate-200/85 bg-slate-50/90 hover:bg-white'
-                              } transition`}
-                            >
-                              <h4 className={`line-clamp-2 text-sm font-semibold ${primaryClass}`}>{news.headline}</h4>
-                              <p className={`mt-1 line-clamp-3 text-sm leading-relaxed ${dimClass}`}>{news.factSummary}</p>
-                              <div className={`mt-1.5 flex flex-wrap items-center gap-1.5 text-xs ${dimClass}`}>
-                                <span>{news.source}</span>
-                                <span>·</span>
-                                <span>{formatDateTimeWithZone(news.publishedAt, locale)}</span>
-                                {isHttpUrl(news.sourceId) ? (
-                                  <a
-                                    href={news.sourceId}
-                                    target="_blank"
-                                    rel="noreferrer noopener"
-                                    className="ml-auto inline-flex items-center gap-1 text-xs text-cyan-500 hover:text-cyan-400"
-                                  >
-                                    {t('map.source')}
-                                    <ExternalLink className="h-3 w-3" />
-                                  </a>
-                                ) : null}
-                              </div>
-                            </article>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className={`rounded-lg border px-2.5 py-2 text-sm ${isDark ? 'border-slate-700/80 text-slate-500' : 'border-slate-200/90 text-slate-500'}`}>
-                          {t('map.noNewsForTopic')}
-                        </div>
-                      )}
-                    </section>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className={`text-sm ${dimClass}`}>{t('map.noRegion')}</div>
-            )}
-          </motion.aside>
         </div>
+
+        <div className="min-h-0 flex-1 overflow-hidden rounded-xl">
+          <ComposableMap
+            projection="geoEqualEarth"
+            projectionConfig={{ scale: 168 }}
+            width={980}
+            height={560}
+            style={{ width: '100%', height: '100%' }}
+          >
+            <ZoomableGroup
+              center={center}
+              zoom={zoom}
+              minZoom={0.8}
+              maxZoom={4.2}
+              translateExtent={[[-50, -50], [1030, 610]]}
+            >
+              <Geographies geography={worldData}>
+                {({ geographies }: { geographies: SimpleGeo[] }) =>
+                  geographies.map((geo: SimpleGeo) => (
+                    <Geography
+                      key={geo.rsmKey}
+                      geography={geo}
+                      style={{
+                        default: {
+                          fill: isDark ? '#0f172a' : '#dde8f6',
+                          outline: 'none',
+                          stroke: isDark ? '#334155' : '#b8cbe2',
+                          strokeWidth: 0.58,
+                        },
+                        hover: {
+                          fill: isDark ? '#17243a' : '#d2e2f4',
+                          outline: 'none',
+                          stroke: isDark ? '#475569' : '#9ab7d8',
+                          strokeWidth: 0.7,
+                        },
+                        pressed: {
+                          fill: isDark ? '#1e314d' : '#c8dcf2',
+                          outline: 'none',
+                        },
+                      }}
+                    />
+                  ))
+                }
+              </Geographies>
+
+              {regions.map((region) => {
+                const active = region.id === activeId;
+                const color = regionTone(region.sentiment);
+                return (
+                  <Marker key={region.id} coordinates={region.marker}>
+                    <g className="cursor-pointer" onClick={() => setActiveId(region.id)}>
+                      <circle r={20} fill="transparent" />
+                      <circle r={active ? 11 : 8} fill={color} fillOpacity={0.92} stroke={isDark ? '#020617' : '#ffffff'} strokeWidth={1.4} />
+                      <circle r={active ? 18 : 13} fill="none" stroke={color} strokeOpacity={0.34} strokeWidth={1.2} />
+                    </g>
+                  </Marker>
+                );
+              })}
+            </ZoomableGroup>
+          </ComposableMap>
+        </div>
+
+        <motion.div
+          key={activeRegion?.id ?? 'none'}
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.2 }}
+          className={`mt-2.5 rounded-xl border p-2.5 ${surfaceClass}`}
+        >
+          {activeRegion ? (
+            <div>
+              <div className="mb-1.5 flex items-center justify-between gap-2">
+                <div className={`text-base font-semibold ${titleClass}`}>{t(activeRegion.nameKey)}</div>
+                <div className={`text-sm ${dimClass}`}>
+                  {t('map.score')}: {activeRegion.score}
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                {activeRegion.news.length > 0 ? (
+                  activeRegion.news.map((item) => (
+                    <article key={item.id} className={`rounded-lg border px-2.5 py-2 ${isDark ? 'border-slate-800/80 bg-slate-900/70' : 'border-slate-200/90 bg-slate-50/88'}`}>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <div className={`line-clamp-2 text-sm font-medium leading-relaxed ${titleClass}`}>{item.headline}</div>
+                          <div className={`mt-1 text-xs ${dimClass}`}>{formatDateTimeWithZone(item.publishedAt, locale, { withYear: false })}</div>
+                        </div>
+                        <div className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${
+                          item.sentiment === 'bullish'
+                            ? 'bg-emerald-500/15 text-emerald-400'
+                            : item.sentiment === 'bearish'
+                            ? 'bg-rose-500/15 text-rose-400'
+                            : 'bg-cyan-500/15 text-cyan-400'
+                        }`}>
+                          {item.sentiment === 'bullish' ? '↑' : item.sentiment === 'bearish' ? '↓' : '→'}
+                        </div>
+                      </div>
+                    </article>
+                  ))
+                ) : (
+                  <div className={`rounded-lg border px-2.5 py-3 text-center text-sm ${isDark ? 'border-slate-800/80 bg-slate-900/70' : 'border-slate-200/90 bg-slate-50/88'} ${dimClass}`}>
+                    {t('map.noNewsForTopic')}
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className={`text-sm ${dimClass}`}>{t('map.noRegion')}</div>
+          )}
+        </motion.div>
       </div>
     </div>
   );

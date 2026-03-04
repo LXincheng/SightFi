@@ -48,22 +48,28 @@ export function getHealth(): Promise<HealthStatus> {
   return requestJson<HealthStatus>(API_PATHS.health);
 }
 
-export function getQuotes(): Promise<MarketQuote[]> {
-  return requestJson<MarketQuote[]>(API_PATHS.marketQuotes);
+export function getHealthWithSignal(signal?: AbortSignal): Promise<HealthStatus> {
+  return requestJson<HealthStatus>(API_PATHS.health, { signal });
+}
+
+export function getQuotes(signal?: AbortSignal): Promise<MarketQuote[]> {
+  return requestJson<MarketQuote[]>(API_PATHS.marketQuotes, { signal });
 }
 
 export function getFacts(
   query?: string,
   limit?: number,
   lang?: 'en' | 'zh',
+  signal?: AbortSignal,
 ): Promise<NewsFact[]> {
   return requestJson<NewsFact[]>(
     `${API_PATHS.newsFacts}${buildQuery({ q: query, limit, lang })}`,
+    { signal },
   );
 }
 
-export function getProviderFlags(): Promise<ProviderFlags> {
-  return requestJson<ProviderFlags>(API_PATHS.systemProviders);
+export function getProviderFlags(signal?: AbortSignal): Promise<ProviderFlags> {
+  return requestJson<ProviderFlags>(API_PATHS.systemProviders, { signal });
 }
 
 export function postPortfolioSummary(payload: PortfolioSummaryRequest): Promise<PortfolioSummaryResponse> {

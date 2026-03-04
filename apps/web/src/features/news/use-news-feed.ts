@@ -27,6 +27,7 @@ export function useNewsFeed(
   const [limit, setLimitState] = useState<number>(NEWS_DEFAULTS.limit);
   const queryRef = useRef(query);
   const limitRef = useRef(limit);
+  const hasSyncedLocaleRef = useRef(false);
 
   useEffect(() => {
     setFacts(initialFacts);
@@ -67,6 +68,13 @@ export function useNewsFeed(
 
   useEffect(() => {
     async function syncByLocale() {
+      if (!hasSyncedLocaleRef.current) {
+        hasSyncedLocaleRef.current = true;
+        if (initialFacts.length > 0) {
+          return;
+        }
+      }
+
       setLoading(true);
       setError(null);
       try {
@@ -84,7 +92,7 @@ export function useNewsFeed(
     }
 
     void syncByLocale();
-  }, [locale]);
+  }, [initialFacts.length, locale]);
 
   return {
     facts,

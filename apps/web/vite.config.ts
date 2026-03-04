@@ -36,6 +36,21 @@ export default defineConfig({
       },
     }),
   ],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return undefined
+          if (id.includes('react-simple-maps') || id.includes('world-atlas')) return 'vendor-map'
+          if (id.includes('recharts') || id.includes('echarts')) return 'vendor-charts'
+          if (id.includes('motion') || id.includes('framer-motion')) return 'vendor-motion'
+          if (id.includes('lucide-react')) return 'vendor-icons'
+          return 'vendor-core'
+        },
+      },
+    },
+    chunkSizeWarningLimit: 650,
+  },
   server: {
     port: 5173,
     proxy: {

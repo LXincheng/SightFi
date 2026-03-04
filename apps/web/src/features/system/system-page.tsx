@@ -1,12 +1,14 @@
-import { useState } from 'react';
-import type { ProviderFlags } from '@sightfi/shared';
+import { useMemo, useState } from 'react';
+import type { NewsFact, ProviderFlags } from '@sightfi/shared';
 import type { Locale } from '../../shared/i18n/messages';
+import { t } from '../../shared/i18n/messages';
 import { Bell, Cpu, Globe, Moon, Sun } from 'lucide-react';
 
 interface SystemPageProps {
   theme: 'dark' | 'light';
   locale: Locale;
   providers: ProviderFlags | null;
+  facts: NewsFact[];
   onToggleTheme: () => void;
   onToggleLocale: () => void;
 }
@@ -39,7 +41,7 @@ function Toggle({ checked, onChange, isDark }: ToggleProps) {
   );
 }
 
-export function SystemPage({ theme, locale, providers, onToggleTheme, onToggleLocale }: SystemPageProps) {
+export function SystemPage({ theme, locale, providers, facts, onToggleTheme, onToggleLocale }: SystemPageProps) {
   const [factOnly, setFactOnly] = useState(true);
   const [portfolioAware, setPortfolioAware] = useState(true);
   const [priceAlert, setPriceAlert] = useState(true);
@@ -59,6 +61,22 @@ export function SystemPage({ theme, locale, providers, onToggleTheme, onToggleLo
     { name: 'AI Analysis', active: providers?.aiPrimaryConfigured ?? false },
     { name: 'Database', active: providers?.databaseConfigured ?? false },
   ];
+  const sourceDistribution = useMemo(() => {
+    const counter = new Map<string, number>();
+    facts.forEach((fact) => {
+      const source = fact.source?.trim() || (locale === 'zh' ? '未知来源' : 'Unknown');
+      counter.set(source, (counter.get(source) ?? 0) + 1);
+    });
+    const total = Array.from(counter.values()).reduce((sum, value) => sum + value, 0) || 1;
+    return Array.from(counter.entries())
+      .map(([source, count]) => ({
+        source,
+        count,
+        ratio: Math.round((count / total) * 100),
+      }))
+      .sort((left, right) => right.count - left.count)
+      .slice(0, 6);
+  }, [facts, locale]);
 
   return (
     <div className="grid grid-cols-1 gap-4 md:gap-5 xl:grid-cols-2">
@@ -67,7 +85,7 @@ export function SystemPage({ theme, locale, providers, onToggleTheme, onToggleLo
           <div className="rounded-lg bg-emerald-500/15 p-1.5">
             <Sun className="h-4 w-4 text-emerald-400" />
           </div>
-          <h2 className={`text-base font-semibold ${textPrimary}`}>{locale === 'zh' ? '外观与语言' : 'Appearance & Language'}</h2>
+          <h2 className={`text-lg font-bold ${textPrimary}`}>{locale === 'zh' ? '外观与语言' : 'Appearance & Language'}</h2>
         </div>
 
         <div className="space-y-4">
@@ -148,7 +166,7 @@ export function SystemPage({ theme, locale, providers, onToggleTheme, onToggleLo
           <div className="rounded-lg bg-purple-500/15 p-1.5">
             <Cpu className="h-4 w-4 text-purple-400" />
           </div>
-          <h2 className={`text-base font-semibold ${textPrimary}`}>{locale === 'zh' ? 'AI 与提醒' : 'AI & Alerts'}</h2>
+          <h2 className={`text-lg font-bold ${textPrimary}`}>{locale === 'zh' ? 'AI 与提醒' : 'AI & Alerts'}</h2>
         </div>
 
         <div className="space-y-4">
@@ -194,7 +212,7 @@ export function SystemPage({ theme, locale, providers, onToggleTheme, onToggleLo
           <div className="rounded-lg bg-blue-500/15 p-1.5">
             <Globe className="h-4 w-4 text-blue-400" />
           </div>
-          <h2 className={`text-base font-semibold ${textPrimary}`}>{locale === 'zh' ? '服务状态' : 'Service Status'}</h2>
+          <h2 className={`text-lg font-bold ${textPrimary}`}>{locale === 'zh' ? '服务状态' : 'Service Status'}</h2>
         </div>
         <div className="grid grid-cols-2 gap-2.5 md:grid-cols-4">
           {sourceCards.map((source) => (
@@ -216,6 +234,42 @@ export function SystemPage({ theme, locale, providers, onToggleTheme, onToggleLo
             ? '当服务异常时会自动降级到快照模式，保障页面可用。'
             : 'When a provider is unstable, SightFi falls back to snapshot mode automatically.'}
         </div>
+      </section>
+
+      <section className={`glass-card rounded-2xl border p-4 md:p-5 xl:col-span-2 ${cardBase}`}>
+        <div className={`mb-4 flex items-center gap-2 border-b pb-3.5 ${divider}`}>
+          <div className="rounded-lg bg-cyan-500/15 p-1.5">
+            <Globe className="h-4 w-4 text-cyan-400" />
+          </div>
+          <div>
+            <h2 className={`text-lg font-bold ${textPrimary}`}>{t('system.newsSource.title')}</h2>
+            <p className={`text-sm ${textDim}`}>{t('system.newsSource.subtitle')}</p>
+          </div>
+        </div>
+
+        {sourceDistribution.length > 0 ? (
+          <div className="space-y-2.5">
+            {sourceDistribution.map((item) => (
+              <article key={item.source} className={`rounded-xl border px-3 py-2 ${isDark ? 'border-zinc-700/45 bg-zinc-900/35' : 'border-slate-200/80 bg-white/80'}`}>
+                <div className="mb-1.5 flex items-center justify-between gap-2">
+                  <span className={`truncate text-sm font-medium ${textPrimary}`}>{item.source}</span>
+                  <span className={`text-sm ${textDim}`}>{item.count}</span>
+                </div>
+                <div className={`h-1.5 overflow-hidden rounded-full ${isDark ? 'bg-zinc-800' : 'bg-slate-200'}`}>
+                  <div
+                    className="h-full rounded-full bg-cyan-500/80"
+                    style={{ width: `${Math.max(6, item.ratio)}%` }}
+                  />
+                </div>
+                <div className={`mt-1 text-sm ${textDim}`}>{item.ratio}%</div>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <div className={`rounded-xl border px-3 py-2 text-sm ${isDark ? 'border-zinc-700/45 bg-zinc-900/35 text-zinc-500' : 'border-slate-200/80 bg-slate-50/90 text-slate-500'}`}>
+            {t('system.newsSource.empty')}
+          </div>
+        )}
       </section>
     </div>
   );

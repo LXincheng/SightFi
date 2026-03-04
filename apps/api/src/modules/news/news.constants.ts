@@ -5,12 +5,21 @@ export const NEWS_CONSTANTS = {
   maxLimit: 50,
   summaryMaxLength: 180,
   googleRssEndpoint: 'https://news.google.com/rss/search',
+  regionRssFeeds: [
+    'https://feeds.bbci.co.uk/news/world/rss.xml',
+    'https://feeds.bbci.co.uk/news/business/rss.xml',
+    'https://www.aljazeera.com/xml/rss/all.xml',
+    'https://www.cnbc.com/id/100727362/device/rss/rss.html',
+  ],
   autoQueryPacks: [
     'global markets',
     'geopolitics',
+    'europe economy',
+    'middle east oil',
+    'asia pacific markets',
+    'latin america economy',
+    'africa commodities',
     'us stocks',
     'hong kong stocks',
-    'china etf valuation',
-    'jin10 macro',
   ],
 } as const;

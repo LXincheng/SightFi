@@ -184,6 +184,14 @@ export class NewsDataService {
       this.logger.warn(`RSS blend failed: ${message}`);
     }
 
+    try {
+      const regionalFacts = await this.getRegionRssFacts(limit);
+      if (regionalFacts.length > 0) return regionalFacts;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.warn(`Regional RSS failed: ${message}`);
+    }
+
     return this.getYahooRssFacts(limit);
   }
 
@@ -191,10 +199,12 @@ export class NewsDataService {
     query: string,
     limit: number,
   ): Promise<NewsFact[]> {
-    const [googleResult, yahooResult] = await Promise.allSettled([
-      this.getGoogleNewsRssFacts(query, limit),
-      this.getYahooRssFacts(limit),
-    ]);
+    const [googleResult, yahooResult, regionalResult] =
+      await Promise.allSettled([
+        this.getGoogleNewsRssFacts(query, limit),
+        this.getYahooRssFacts(limit),
+        this.getRegionRssFacts(limit),
+      ]);
 
     const merged: NewsFact[] = [];
     if (googleResult.status === 'fulfilled') {
@@ -203,8 +213,15 @@ export class NewsDataService {
     if (yahooResult.status === 'fulfilled') {
       merged.push(...yahooResult.value);
     }
+    if (regionalResult.status === 'fulfilled') {
+      merged.push(...regionalResult.value);
+    }
 
-    return merged.slice(0, limit);
+    const dedupe = new Map<string, NewsFact>();
+    merged.forEach((item) => {
+      dedupe.set(`${item.source}-${item.headline}`, item);
+    });
+    return Array.from(dedupe.values()).slice(0, limit);
   }
 
   private async getGoogleNewsRssFacts(
@@ -322,6 +339,77 @@ export class NewsDataService {
           : new Date().toISOString(),
       };
     });
+  }
+
+  private async getRegionRssFacts(limit: number): Promise<NewsFact[]> {
+    const settled = await Promise.allSettled(
+      NEWS_CONSTANTS.regionRssFeeds.map((url) => this.fetchCustomRssFeed(url)),
+    );
+
+    const merged = settled
+      .filter(
+        (
+          item,
+        ): item is PromiseFulfilledResult<
+          Array<{
+            title: string;
+            description: string;
+            link: string;
+            source: string;
+            publishedAt: string;
+          }>
+        > => item.status === 'fulfilled',
+      )
+      .flatMap((item) => item.value)
+      .slice(0, limit * 2);
+
+    const dedupe = new Map<string, NewsFact>();
+    merged.forEach((item, index) => {
+      const headline = item.title || `Global RSS ${index + 1}`;
+      const summary = this.toFactSummary(item.description, headline);
+      const normalized = this.normalizeGenericNews({
+        prefix: 'global-rss',
+        index,
+        source: item.source || 'Global RSS',
+        headline,
+        content: summary,
+        publishedAt: item.publishedAt,
+        url: item.link,
+      });
+      dedupe.set(`${normalized.source}-${normalized.headline}`, normalized);
+    });
+
+    return Array.from(dedupe.values()).slice(0, limit);
+  }
+
+  private async fetchCustomRssFeed(url: string): Promise<
+    Array<{
+      title: string;
+      description: string;
+      link: string;
+      source: string;
+      publishedAt: string;
+    }>
+  > {
+    const response = await fetch(url, { method: 'GET' });
+    if (!response.ok) {
+      throw new Error(`RSS feed failed: ${response.status} ${url}`);
+    }
+    const xml = await response.text();
+    const sourceFallback = this.sourceFromUrl(url);
+    return this.parseRssItems(xml).map((item) => ({
+      ...item,
+      source: item.source || sourceFallback,
+    }));
+  }
+
+  private sourceFromUrl(url: string): string {
+    try {
+      const parsed = new URL(url);
+      return parsed.hostname.replace(/^www\./i, '');
+    } catch {
+      return 'Global RSS';
+    }
   }
 
   private parseRssItems(xml: string): Array<{

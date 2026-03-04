@@ -1,11 +1,8 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { Route, Routes } from 'react-router-dom';
 import { AppShell } from './layout/app-shell';
 import { DashboardPage } from '../features/dashboard/dashboard-page';
-import { IntelPage } from '../features/news/intel-page';
 import { useNewsFeed } from '../features/news/use-news-feed';
-import { AssetsPage } from '../features/portfolio/assets-page';
-import { SystemPage } from '../features/system/system-page';
 import { APP_CONSTANTS } from '../shared/constants/app.constants';
 import type { CurrencyCode } from '../shared/constants/currency.constants';
 import { useBootstrap } from '../shared/hooks/use-bootstrap';
@@ -15,12 +12,51 @@ import type { Locale } from '../shared/i18n/messages';
 import { Notice } from '../shared/ui/notice';
 import { resolveCurrency } from '../shared/utils/currency';
 
+const IntelPage = lazy(() =>
+  import('../features/news/intel-page').then((module) => ({ default: module.IntelPage })),
+);
+const AssetsPage = lazy(() =>
+  import('../features/portfolio/assets-page').then((module) => ({ default: module.AssetsPage })),
+);
+const SystemPage = lazy(() =>
+  import('../features/system/system-page').then((module) => ({ default: module.SystemPage })),
+);
+
 type ThemeMode = 'dark' | 'light';
 
 function detectInitialLocale(): Locale {
   const stored = localStorage.getItem(APP_CONSTANTS.localeStorageKey);
   if (stored === 'en' || stored === 'zh') return stored;
   return resolveLocale(navigator.language);
+}
+
+interface IntelRouteProps {
+  initialFacts: ReturnType<typeof useBootstrap>['facts'];
+  quotes: ReturnType<typeof useLiveQuotes>['quotes'];
+  locale: Locale;
+  isDark: boolean;
+  currency: CurrencyCode;
+}
+
+function IntelRoute({ initialFacts, quotes, locale, isDark, currency }: IntelRouteProps) {
+  const newsFeed = useNewsFeed(initialFacts, locale);
+
+  return (
+    <IntelPage
+      facts={newsFeed.facts}
+      loading={newsFeed.loading}
+      error={newsFeed.error}
+      query={newsFeed.query}
+      limit={newsFeed.limit}
+      onQueryChange={newsFeed.setQuery}
+      onLimitChange={newsFeed.setLimit}
+      onReload={newsFeed.reload}
+      quotes={quotes}
+      locale={locale}
+      isDark={isDark}
+      currency={currency}
+    />
+  );
 }
 
 function App() {
@@ -35,13 +71,13 @@ function App() {
 
   const state = useBootstrap(locale);
   const live = useLiveQuotes(state.quotes);
-  const newsFeed = useNewsFeed(state.facts, locale);
+  const isDark = theme === 'dark';
 
   useEffect(() => {
-    document.documentElement.classList.toggle('dark', theme === 'dark');
+    document.documentElement.classList.toggle('dark', isDark);
     document.documentElement.dataset.theme = theme;
     localStorage.setItem(APP_CONSTANTS.themeStorageKey, theme);
-  }, [theme]);
+  }, [isDark, theme]);
 
   useEffect(() => {
     setLocale(locale);
@@ -53,9 +89,14 @@ function App() {
     localStorage.setItem(APP_CONSTANTS.currencyStorageKey, currency);
   }, [currency]);
 
+  const routeFallback = useMemo(
+    () => <Notice tone="info" message={locale === 'zh' ? '页面加载中…' : 'Loading page...'} />,
+    [locale],
+  );
+
   return (
     <AppShell
-      isDark={theme === 'dark'}
+      isDark={isDark}
       locale={locale}
       currency={currency}
       onCurrencyChange={setCurrency}
@@ -68,63 +109,59 @@ function App() {
       ) : state.error ? (
         <Notice tone="error" message={state.error} />
       ) : (
-        <Routes>
-          <Route
-            path="/"
-            element={
-              <DashboardPage
-                state={state}
-                live={live}
-                facts={newsFeed.facts}
-                locale={locale}
-                isDark={theme === 'dark'}
-                currency={currency}
-              />
-            }
-          />
-          <Route
-            path="/news"
-            element={
-              <IntelPage
-                facts={newsFeed.facts}
-                loading={newsFeed.loading}
-                error={newsFeed.error}
-                query={newsFeed.query}
-                limit={newsFeed.limit}
-                onQueryChange={newsFeed.setQuery}
-                onLimitChange={newsFeed.setLimit}
-                onReload={newsFeed.reload}
-                quotes={live.quotes}
-                locale={locale}
-                isDark={theme === 'dark'}
-                currency={currency}
-              />
-            }
-          />
-          <Route
-            path="/portfolio"
-            element={
-              <AssetsPage
-                quotes={live.quotes}
-                locale={locale}
-                isDark={theme === 'dark'}
-                currency={currency}
-              />
-            }
-          />
-          <Route
-            path="/settings"
-            element={
-              <SystemPage
-                theme={theme}
-                locale={locale}
-                providers={state.providers}
-                onToggleTheme={() => setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'))}
-                onToggleLocale={() => setLocaleState((prev) => (prev === 'en' ? 'zh' : 'en'))}
-              />
-            }
-          />
-        </Routes>
+        <Suspense fallback={routeFallback}>
+          <Routes>
+            <Route
+              path="/"
+              element={
+                <DashboardPage
+                  state={state}
+                  live={live}
+                  facts={state.facts}
+                  locale={locale}
+                  isDark={isDark}
+                  currency={currency}
+                />
+              }
+            />
+            <Route
+              path="/news"
+              element={
+                <IntelRoute
+                  initialFacts={state.facts}
+                  quotes={live.quotes}
+                  locale={locale}
+                  isDark={isDark}
+                  currency={currency}
+                />
+              }
+            />
+            <Route
+              path="/portfolio"
+              element={
+                <AssetsPage
+                  quotes={live.quotes}
+                  locale={locale}
+                  isDark={isDark}
+                  currency={currency}
+                />
+              }
+            />
+            <Route
+              path="/settings"
+              element={
+                <SystemPage
+                  theme={theme}
+                  locale={locale}
+                  providers={state.providers}
+                  facts={state.facts}
+                  onToggleTheme={() => setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'))}
+                  onToggleLocale={() => setLocaleState((prev) => (prev === 'en' ? 'zh' : 'en'))}
+                />
+              }
+            />
+          </Routes>
+        </Suspense>
       )}
     </AppShell>
   );

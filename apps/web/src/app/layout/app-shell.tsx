@@ -44,28 +44,28 @@ export function AppShell({
   onToggleLocale,
 }: AppShellProps) {
   const rootBg = isDark
-    ? 'bg-zinc-950 text-zinc-100'
-    : 'bg-gradient-to-br from-slate-100 via-blue-50/40 to-indigo-50/20 text-slate-900';
+    ? 'bg-slate-950 text-slate-100'
+    : 'bg-slate-100/75 text-slate-900';
 
   const sidebarBg = isDark
-    ? 'bg-zinc-950/80 border-zinc-800/70'
-    : 'bg-white/55 border-slate-200/70';
+    ? 'bg-slate-950/70 border-slate-800/75 backdrop-blur-xl'
+    : 'bg-white/72 border-slate-200/85 backdrop-blur-xl';
 
   const navActiveClass = isDark
-    ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-    : 'bg-emerald-50/80 text-emerald-700 border border-emerald-200/70';
+    ? 'bg-cyan-500/12 text-cyan-300 border border-cyan-500/25'
+    : 'bg-cyan-50/85 text-cyan-700 border border-cyan-200/80';
 
   const navInactiveClass = isDark
-    ? 'text-zinc-500 hover:text-zinc-200 hover:bg-zinc-900/70 border border-transparent'
-    : 'text-slate-500 hover:text-slate-800 hover:bg-white/60 border border-transparent';
+    ? 'text-slate-500 hover:text-slate-200 hover:bg-slate-900/70 border border-transparent'
+    : 'text-slate-500 hover:text-slate-800 hover:bg-white/70 border border-transparent';
 
   const bottomNavBg = isDark
-    ? 'bg-zinc-950/90 border-zinc-800/80'
-    : 'bg-white/90 border-slate-200/80';
+    ? 'bg-slate-950/88 border-slate-800/80 backdrop-blur-xl'
+    : 'bg-white/90 border-slate-200/90 backdrop-blur-xl';
 
   const statusBg = isDark
-    ? 'bg-zinc-900/60 border-zinc-800'
-    : 'bg-white/60 border-slate-200/60';
+    ? 'bg-slate-900/55 border-slate-800'
+    : 'bg-white/75 border-slate-200/80';
 
   return (
     <div
@@ -76,10 +76,10 @@ export function AppShell({
     >
       <aside className={clsx('hidden w-64 shrink-0 border-r p-5 md:flex md:flex-col', sidebarBg)}>
         <div className="mb-7 mt-1 flex items-center gap-3 px-1">
-          <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-2">
-            <Activity className="h-5 w-5 text-emerald-400" />
+          <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/10 p-2">
+            <Activity className="h-5 w-5 text-cyan-400" />
           </div>
-          <h1 className="bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-xl font-bold tracking-tight text-transparent">
+          <h1 className="bg-gradient-to-r from-cyan-400 to-emerald-400 bg-clip-text text-xl font-bold tracking-tight text-transparent">
             SightFi
           </h1>
         </div>
@@ -92,7 +92,7 @@ export function AppShell({
               end={item.to === '/'}
               className={({ isActive }) =>
                 clsx(
-                  'flex items-center gap-3 rounded-xl px-3 py-3 text-base transition-all duration-200',
+                  'flex items-center gap-3 rounded-xl px-3 py-3 text-base transition-all duration-200 hover:-translate-y-[1px]',
                   isActive ? navActiveClass : navInactiveClass,
                 )
               }
@@ -107,10 +107,10 @@ export function AppShell({
           <div className={clsx('rounded-xl border p-3', statusBg)}>
             <div className="flex items-center justify-between">
               <span className={clsx('text-xs', isDark ? 'text-zinc-400' : 'text-slate-500')}>{t('shell.dataSource')}</span>
-              <span className="text-xs font-medium text-emerald-500">{t('shell.bffGateway')}</span>
+              <span className="text-xs font-medium text-cyan-500">{t('shell.bffGateway')}</span>
             </div>
             <div className={clsx('mt-2 flex items-center gap-1.5 text-xs', isDark ? 'text-zinc-300' : 'text-slate-700')}>
-              <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
+              <ShieldCheck className="h-3.5 w-3.5 text-cyan-500" />
               {t('shell.zeroClientKey')}
             </div>
             <div className={clsx('mt-1.5 text-xs', isDark ? 'text-zinc-500' : 'text-slate-500')}>
@@ -125,8 +125,8 @@ export function AppShell({
               className={clsx(
                 'rounded-xl border px-2 py-2 text-sm outline-none transition-all',
                 isDark
-                  ? 'border-zinc-800 bg-zinc-900/50 text-zinc-200 hover:border-zinc-700'
-                  : 'border-slate-200 bg-white/70 text-slate-700 hover:border-slate-300',
+                  ? 'border-slate-700 bg-slate-900/60 text-slate-200 hover:border-slate-600'
+                  : 'border-slate-200 bg-white/82 text-slate-700 hover:border-slate-300',
               )}
             >
               {CURRENCY_OPTIONS.map((option) => (
@@ -141,8 +141,8 @@ export function AppShell({
               className={clsx(
                 'flex items-center justify-center gap-1 rounded-xl border px-2 py-2 text-sm transition-all',
                 isDark
-                  ? 'border-zinc-800 bg-zinc-900/50 text-zinc-300 hover:border-zinc-700'
-                  : 'border-slate-200 bg-white/70 text-slate-600 hover:border-slate-300',
+                  ? 'border-slate-700 bg-slate-900/60 text-slate-300 hover:border-slate-600'
+                  : 'border-slate-200 bg-white/82 text-slate-600 hover:border-slate-300',
               )}
             >
               {isDark ? <Moon className="h-3.5 w-3.5" /> : <Sun className="h-3.5 w-3.5" />}
@@ -154,8 +154,8 @@ export function AppShell({
               className={clsx(
                 'rounded-xl border px-2 py-2 text-sm font-medium transition-all',
                 isDark
-                  ? 'border-zinc-800 bg-zinc-900/50 text-zinc-300 hover:border-zinc-700'
-                  : 'border-slate-200 bg-white/70 text-slate-600 hover:border-slate-300',
+                  ? 'border-slate-700 bg-slate-900/60 text-slate-300 hover:border-slate-600'
+                  : 'border-slate-200 bg-white/82 text-slate-600 hover:border-slate-300',
               )}
             >
               {t('app.switchLanguage')}
@@ -166,8 +166,8 @@ export function AppShell({
       </aside>
 
       <main className="relative flex-1 overflow-y-auto scrollbar-thin">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(16,185,129,0.08),transparent_55%),radial-gradient(ellipse_at_bottom_left,rgba(59,130,246,0.06),transparent_55%)]" />
-        <div className="relative z-20 w-full px-3 pb-24 pt-4 md:px-5 md:pb-6 md:pt-5 lg:px-6">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(34,211,238,0.08),transparent_56%),radial-gradient(ellipse_at_bottom_left,rgba(16,185,129,0.07),transparent_58%)]" />
+        <div className="relative z-20 w-full px-3 pb-28 pt-4 md:px-5 md:pb-6 md:pt-5 lg:px-6">
           <div className="absolute right-2 top-2 z-30 flex items-center gap-2 md:hidden">
             <select
               value={currency}
@@ -175,7 +175,7 @@ export function AppShell({
               className={clsx(
                 'rounded-lg border px-2 py-1.5 text-xs backdrop-blur-md outline-none',
                 isDark
-                  ? 'border-zinc-700 bg-zinc-900/70 text-zinc-200'
+                  ? 'border-slate-700 bg-slate-900/72 text-slate-200'
                   : 'border-slate-200 bg-white/80 text-slate-700',
               )}
             >
@@ -191,7 +191,7 @@ export function AppShell({
               className={clsx(
                 'rounded-lg border px-2 py-1.5 text-xs font-semibold backdrop-blur-md',
                 isDark
-                  ? 'border-zinc-700 bg-zinc-900/70 text-zinc-200'
+                  ? 'border-slate-700 bg-slate-900/72 text-slate-200'
                   : 'border-slate-200 bg-white/80 text-slate-700',
               )}
             >
@@ -203,7 +203,7 @@ export function AppShell({
               className={clsx(
                 'rounded-lg border px-2 py-1.5 text-xs backdrop-blur-md',
                 isDark
-                  ? 'border-zinc-700 bg-zinc-900/70 text-zinc-200'
+                  ? 'border-slate-700 bg-slate-900/72 text-slate-200'
                   : 'border-slate-200 bg-white/80 text-slate-700',
               )}
             >
@@ -215,7 +215,7 @@ export function AppShell({
       </main>
 
       <nav className={clsx('safe-bottom fixed inset-x-0 bottom-0 z-50 border-t md:hidden', bottomNavBg)}>
-        <div className="grid h-16 grid-cols-4">
+        <div className="grid h-14 grid-cols-4">
           {NAV_ITEMS.map((item) => (
             <NavLink
               key={item.to}
@@ -224,7 +224,7 @@ export function AppShell({
               className={({ isActive }) =>
                 clsx(
                   'flex flex-col items-center justify-center gap-1 transition-colors active:scale-95',
-                  isActive ? 'text-emerald-500' : isDark ? 'text-zinc-600' : 'text-slate-400',
+                  isActive ? 'text-cyan-500' : isDark ? 'text-slate-600' : 'text-slate-400',
                 )
               }
             >
